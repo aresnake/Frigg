@@ -75,20 +75,25 @@ def handle_request(request):
     method = request.get("method")
     params = request.get("params", {})
 
-    if method == "bridge_ping":
-        return {"ok": True, "result": {"pong": True, "time": time.time()}}
-    if method == "get_object_transform":
-        return {"result": get_object_transform(params)}
-    if method == "set_object_location":
-        return {"result": set_object_location(params)}
-    if method == "scene_info":
-        return {"result": scene_info()}
-    if method == "list_objects":
-        return {"result": list_objects()}
-    if method == "move_object":
-        return {"result": move_object(params)}
+    try:
+        if method == "bridge_ping":
+            return {"ok": True, "result": {"pong": True, "time": time.time()}}
+        if method == "get_object_transform":
+            return {"result": get_object_transform(params)}
+        if method == "set_object_location":
+            return {"result": set_object_location(params)}
+        if method == "scene_info":
+            return {"result": scene_info()}
+        if method == "list_objects":
+            return {"result": list_objects()}
+        if method == "move_object":
+            return {"result": move_object(params)}
 
-    return {"error": f"Unknown method: {method}"}
+        return {"error": f"Unknown method: {method}"}
+    except Exception as exc:
+        log(f"Error handling {method}: {exc}")
+        log(traceback.format_exc())
+        return {"error": str(exc)}
 
 
 def _accept_loop(server: socket.socket) -> None:
