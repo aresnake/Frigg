@@ -45,12 +45,42 @@ def move_object(params):
     return {"name": obj.name, "location": [float(v) for v in obj.location]}
 
 
+def get_object_transform(params):
+    name = params.get("name")
+    if not name:
+        raise ValueError("get_object_transform requires name")
+    obj = bpy.data.objects.get(name)
+    if obj is None:
+        raise ValueError(f"Object not found: {name}")
+    return {
+        "name": obj.name,
+        "location": [float(v) for v in obj.location],
+        "rotation_euler": [float(v) for v in obj.rotation_euler],
+        "scale": [float(v) for v in obj.scale],
+    }
+
+
+def set_object_location(params):
+    name = params.get("name")
+    location = params.get("location")
+    if not name or not isinstance(location, (list, tuple)) or len(location) != 3:
+        raise ValueError("set_object_location requires name and location[3]")
+    obj = bpy.data.objects.get(name)
+    if obj is None:
+        raise ValueError(f"Object not found: {name}")
+    obj.location = location
+    return {"name": obj.name, "location": [float(v) for v in obj.location]}
+
 def handle_request(request):
     method = request.get("method")
     params = request.get("params", {})
 
     if method == "bridge_ping":
         return {"ok": True, "result": {"pong": True, "time": time.time()}}
+    if method == "get_object_transform":
+        return {"result": get_object_transform(params)}
+    if method == "set_object_location":
+        return {"result": set_object_location(params)}
     if method == "scene_info":
         return {"result": scene_info()}
     if method == "list_objects":

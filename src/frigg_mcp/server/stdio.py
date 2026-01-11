@@ -5,7 +5,7 @@ import sys
 from typing import Any, Dict, Optional
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "frigg-mcp", "version": "0.1.1"}
+SERVER_INFO = {"name": "frigg-mcp", "version": "0.1.2"}
 
 
 def log(message: str) -> None:
@@ -59,6 +59,34 @@ def tools_list() -> Dict[str, Any]:
                 "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
             },
             {
+                "name": "frigg.blender.get_object_transform",
+                "description": "Get object transform by name.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"name": {"type": "string"}},
+                    "required": ["name"],
+                    "additionalProperties": False,
+                },
+            },
+            {
+                "name": "frigg.blender.set_object_location",
+                "description": "Set object location by name.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "location": {
+                            "type": "array",
+                            "items": {"type": "number"},
+                            "minItems": 3,
+                            "maxItems": 3,
+                        },
+                    },
+                    "required": ["name", "location"],
+                    "additionalProperties": False,
+                },
+            },
+            {
                 "name": "frigg.blender.scene_info",
                 "description": "Get basic scene info from Blender.",
                 "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
@@ -90,30 +118,36 @@ def tools_list() -> Dict[str, Any]:
     }
 
 
-def tool_result_text(payload: Any) -> Dict[str, Any]:
-    return {"content": [{"type": "text", "text": json.dumps(payload)}]}
-
-
 def handle_call(name: str, arguments: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if name == "frigg.ping":
-        return tool_result_text({"ok": True, "message": "pong"})
+        return {"ok": True, "message": "pong"}
 
     if name == "frigg.blender.scene_info":
         response = call_bridge("scene_info", {})
-        return tool_result_text(response)
+        return response
 
     if name == "frigg.blender.bridge_ping":
         response = call_bridge("bridge_ping", {})
-        return tool_result_text(response)
+        return response
+
+    if name == "frigg.blender.get_object_transform":
+        args = arguments or {}
+        response = call_bridge("get_object_transform", args)
+        return response
+
+    if name == "frigg.blender.set_object_location":
+        args = arguments or {}
+        response = call_bridge("set_object_location", args)
+        return response
 
     if name == "frigg.blender.list_objects":
         response = call_bridge("list_objects", {})
-        return tool_result_text(response)
+        return response
 
     if name == "frigg.blender.move_object":
         args = arguments or {}
         response = call_bridge("move_object", args)
-        return tool_result_text(response)
+        return response
 
     raise ValueError(f"Unknown tool: {name}")
 

@@ -6,6 +6,10 @@ Minimal MCP stdio server that forwards Blender tool calls to a TCP bridge.
 - Timer-based keepalive (no blocking loop in Blender).
 - Added `bridge_ping` for lightweight bridge health checks.
 
+## v0.2 notes
+- MCP tool results now return structured JSON directly.
+- Added `get_object_transform` and `set_object_location`.
+
 ## Quick start
 1) Start the Blender bridge:
    pwsh -File .\tools\frigg-bridge.ps1 -UI
