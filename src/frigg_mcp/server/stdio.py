@@ -5,7 +5,7 @@ import sys
 from typing import Any, Dict, Optional
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "frigg-mcp", "version": "0.1.0"}
+SERVER_INFO = {"name": "frigg-mcp", "version": "0.1.1"}
 
 
 def log(message: str) -> None:
@@ -54,6 +54,11 @@ def tools_list() -> Dict[str, Any]:
                 "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
             },
             {
+                "name": "frigg.blender.bridge_ping",
+                "description": "Ping the Blender bridge server.",
+                "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+            },
+            {
                 "name": "frigg.blender.scene_info",
                 "description": "Get basic scene info from Blender.",
                 "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
@@ -95,6 +100,10 @@ def handle_call(name: str, arguments: Optional[Dict[str, Any]]) -> Dict[str, Any
 
     if name == "frigg.blender.scene_info":
         response = call_bridge("scene_info", {})
+        return tool_result_text(response)
+
+    if name == "frigg.blender.bridge_ping":
+        response = call_bridge("bridge_ping", {})
         return tool_result_text(response)
 
     if name == "frigg.blender.list_objects":

@@ -2,9 +2,14 @@ import json
 import os
 import socket
 import sys
+import threading
+import time
 import traceback
 
 import bpy
+
+STOP = False
+SERVER_SOCKET = None
 
 
 def log(message: str) -> None:
@@ -44,6 +49,8 @@ def handle_request(request):
     method = request.get("method")
     params = request.get("params", {})
 
+    if method == "bridge_ping":
+        return {"ok": True, "result": {"pong": True, "time": time.time()}}
     if method == "scene_info":
         return {"result": scene_info()}
     if method == "list_objects":
@@ -54,18 +61,23 @@ def handle_request(request):
     return {"error": f"Unknown method: {method}"}
 
 
-def serve(host: str, port: int) -> None:
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind((host, port))
-    server.listen(1)
-    print("READY", flush=True)
-
+def _accept_loop(server: socket.socket) -> None:
+    server.settimeout(0.5)
     while True:
-        conn, _addr = server.accept()
+        if STOP:
+            break
+        try:
+            conn, _addr = server.accept()
+        except socket.timeout:
+            continue
+        except OSError:
+            break
+
         with conn:
             file = conn.makefile("r", encoding="utf-8")
             for line in file:
+                if STOP:
+                    break
                 line = line.strip()
                 if not line:
                     continue
@@ -77,6 +89,50 @@ def serve(host: str, port: int) -> None:
                     response = {"error": str(exc)}
                 payload = json.dumps(response) + "\n"
                 conn.sendall(payload.encode("utf-8"))
+
+
+def _keepalive():
+    if STOP:
+        return None
+    return 0.5
+
+
+def _request_shutdown() -> None:
+    global STOP
+    STOP = True
+    server = SERVER_SOCKET
+    if server is not None:
+        try:
+            server.close()
+        except OSError:
+            pass
+
+
+def _register_shutdown_handler() -> None:
+    if hasattr(bpy.app.handlers, "quit_pre"):
+        bpy.app.handlers.quit_pre.append(lambda _d=None: _request_shutdown())
+        return
+    try:
+        import atexit
+
+        atexit.register(_request_shutdown)
+    except Exception:
+        pass
+
+
+def serve(host: str, port: int) -> None:
+    global SERVER_SOCKET
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind((host, port))
+    server.listen(1)
+    SERVER_SOCKET = server
+    print("READY", flush=True)
+
+    thread = threading.Thread(target=_accept_loop, args=(server,), daemon=True)
+    thread.start()
+    _register_shutdown_handler()
+    bpy.app.timers.register(_keepalive, first_interval=0.5, persistent=True)
 
 
 if __name__ == "__main__":
