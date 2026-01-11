@@ -71,6 +71,42 @@ def set_object_location(params):
     obj.location = location
     return {"name": obj.name, "location": [float(v) for v in obj.location]}
 
+
+def measure_distance(params):
+    """PROTOTYPE: Measure distance between two objects"""
+    obj1_name = params.get("object1")
+    obj2_name = params.get("object2")
+
+    if not obj1_name or not obj2_name:
+        raise ValueError("measure_distance requires object1 and object2")
+
+    obj1 = bpy.data.objects.get(obj1_name)
+    obj2 = bpy.data.objects.get(obj2_name)
+
+    if not obj1:
+        raise ValueError(f"Object not found: {obj1_name}")
+    if not obj2:
+        raise ValueError(f"Object not found: {obj2_name}")
+
+    # Calculate distance between origins
+    distance = (obj1.location - obj2.location).length
+
+    return {
+        "object1": obj1_name,
+        "object2": obj2_name,
+        "distance": float(distance),
+        "world_distance": {
+            "blender_units": float(distance),
+            "meters": float(distance),
+            "centimeters": float(distance * 100),
+        },
+        "vector": [
+            float(obj2.location.x - obj1.location.x),
+            float(obj2.location.y - obj1.location.y),
+            float(obj2.location.z - obj1.location.z)
+        ]
+    }
+
 def handle_request(request):
     method = request.get("method")
     params = request.get("params", {})
@@ -88,6 +124,10 @@ def handle_request(request):
             return {"result": list_objects()}
         if method == "move_object":
             return {"result": move_object(params)}
+
+        # PROTOTYPE TOOLS - Testing new features
+        if method == "measure_distance":
+            return {"result": measure_distance(params)}
 
         return {"error": f"Unknown method: {method}"}
     except Exception as exc:
