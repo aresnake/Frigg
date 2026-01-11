@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "frigg": {
+      "command": "pwsh",
+      "args": [
+        "-File",
+        "D:\\Frigg\\tools\\frigg-stdio.ps1"
+      ],
+      "env": {
+        "PYTHONPATH": "D:\\Frigg\\src",
+        "FRIGG_BRIDGE_HOST": "127.0.0.1",
+        "FRIGG_BRIDGE_PORT": "7878"
+      }
+    }
+  }
+}
