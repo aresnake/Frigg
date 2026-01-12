@@ -16,8 +16,9 @@ function Test-PortFree {
         [string]$BridgeHost,
         [int]$Port
     )
+    $address = Resolve-BridgeAddress -BridgeHost $BridgeHost
     try {
-        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Parse($BridgeHost), $Port)
+        $listener = [System.Net.Sockets.TcpListener]::new($address, $Port)
         $listener.Start()
         $listener.Stop()
         return $true
@@ -26,16 +27,40 @@ function Test-PortFree {
     }
 }
 
+function Resolve-BridgeAddress {
+    param(
+        [string]$BridgeHost
+    )
+    if (-not $BridgeHost) {
+        return [System.Net.IPAddress]::Loopback
+    }
+    $ip = $null
+    if ([System.Net.IPAddress]::TryParse($BridgeHost, [ref]$ip)) {
+        return $ip
+    }
+    try {
+        $addresses = [System.Net.Dns]::GetHostAddresses($BridgeHost) | Where-Object {
+            $_.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork
+        }
+        if ($addresses -and $addresses.Count -gt 0) {
+            return $addresses[0]
+        }
+    } catch {
+    }
+    return [System.Net.IPAddress]::Loopback
+}
+
 function Get-FreePort {
     param(
         [string]$BridgeHost
     )
+    $address = Resolve-BridgeAddress -BridgeHost $BridgeHost
     foreach ($port in 8765..8795) {
         if (Test-PortFree -BridgeHost $BridgeHost -Port $port) {
             return $port
         }
     }
-    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Parse($BridgeHost), 0)
+    $listener = [System.Net.Sockets.TcpListener]::new($address, 0)
     $listener.Start()
     $port = $listener.LocalEndpoint.Port
     $listener.Stop()
@@ -77,6 +102,10 @@ if (-not $blenderExe) {
 }
 
 $argsList = @()
+if ($Headless -and $UI) {
+    Write-Error "Use -Headless or -UI, not both."
+    exit 1
+}
 if ($Headless) {
     $argsList += "--background"
 }
