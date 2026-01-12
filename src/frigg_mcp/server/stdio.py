@@ -125,12 +125,16 @@ def call_bridge(method: str, params: Dict[str, Any], retry: int = 0) -> Dict[str
     except json.JSONDecodeError as e:
         raise RuntimeError(f"Invalid JSON response from Blender bridge: {e}")
 
-    # Check if the bridge returned an error
-    if isinstance(response, dict) and "error" in response and "result" not in response:
-        error_msg = response.get("error", "Unknown error")
-        raise RuntimeError(f"Blender bridge error: {error_msg}")
-
-    return response
+    if not isinstance(response, dict):
+        raise RuntimeError("Invalid bridge response: expected object")
+    if "ok" not in response:
+        raise RuntimeError("Invalid bridge response: missing ok")
+    if response.get("ok") is True:
+        if "result" not in response:
+            raise RuntimeError("Invalid bridge response: missing result")
+        return {"ok": True, "result": response.get("result")}
+    error_msg = response.get("error") or "Unknown bridge error"
+    return {"ok": False, "error": str(error_msg)}
 
 
 def tools_list() -> Dict[str, Any]:
@@ -247,12 +251,12 @@ def tools_list() -> Dict[str, Any]:
                         "isolate": {
                             "type": "boolean",
                             "description": "Hide all objects except target",
-                            "default": false
+                            "default": False
                         },
                         "fit_to_view": {
                             "type": "boolean",
                             "description": "Frame target object in view",
-                            "default": false
+                            "default": False
                         }
                     },
                     "additionalProperties": False,
@@ -264,7 +268,7 @@ def tools_list() -> Dict[str, Any]:
 
 def handle_call(name: str, arguments: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if name == "frigg.ping":
-        return {"ok": True, "message": "pong"}
+        return {"ok": True, "result": {"message": "pong"}}
 
     if name == "frigg.blender.scene_info":
         response = call_bridge("scene_info", {})
@@ -349,7 +353,7 @@ def handle_request(request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         except Exception as exc:
             log(f"Tool call error: {exc}")
             log(traceback.format_exc())
-            return jsonrpc_error(-32603, str(exc), req_id)
+            result = {"ok": False, "error": str(exc)}
         return jsonrpc_result(result, req_id)
 
     # Handle methods we don't support yet but shouldn't error on
