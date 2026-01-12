@@ -6,12 +6,13 @@ import sys
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
+from frigg_mcp import __version__ as FRIGG_VERSION
+
 from frigg_mcp.tools import core_tools
 from frigg_mcp.tools.search_tools import handle_search_tools
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "frigg-mcp", "version": "0.1.1"}
-
+SERVER_INFO = {"name": "frigg-mcp", "version": FRIGG_VERSION}
 # Track if we're shutting down
 _SHUTTING_DOWN = False
 
