@@ -10,7 +10,7 @@ from frigg_mcp.tools import core_tools
 from frigg_mcp.tools.search_tools import handle_search_tools
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "frigg-mcp", "version": "0.1.3"}
+SERVER_INFO = {"name": "frigg-mcp", "version": "0.1.1"}
 
 # Track if we're shutting down
 _SHUTTING_DOWN = False
