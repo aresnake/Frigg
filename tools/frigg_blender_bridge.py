@@ -74,6 +74,288 @@ def set_object_location(params):
     return {"name": obj.name, "location": [float(v) for v in obj.location]}
 
 
+def set_object_rotation(params):
+    """
+    Set object rotation with multiple input formats.
+
+    Parameters:
+        object_name: Name of the object
+        rotation: [x, y, z] angles
+        rotation_mode: "degrees" | "radians" | "quaternion" (default: degrees)
+        order: "XYZ" | "XZY" | "YXZ" | "YZX" | "ZXY" | "ZYX" (default: XYZ)
+
+    Returns:
+        Current rotation in both degrees and radians
+    """
+    import math
+
+    object_name = params.get("object_name") or params.get("name")
+    rotation = params.get("rotation")
+    rotation_mode = params.get("rotation_mode", "degrees")
+    order = params.get("order", "XYZ")
+
+    if not object_name:
+        raise ValueError("set_object_rotation requires 'object_name' parameter")
+    if not rotation or len(rotation) != 3:
+        raise ValueError("set_object_rotation requires 'rotation' as [x, y, z]")
+
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        raise ValueError(f"Object '{object_name}' not found")
+
+    # Convert to radians if needed
+    if rotation_mode == "degrees":
+        rotation_rad = [math.radians(angle) for angle in rotation]
+    elif rotation_mode == "radians":
+        rotation_rad = rotation
+    elif rotation_mode == "quaternion":
+        # Assume [w, x, y, z] quaternion format
+        import mathutils
+        obj.rotation_mode = 'QUATERNION'
+        obj.rotation_quaternion = mathutils.Quaternion(rotation)
+        return {
+            "object_name": object_name,
+            "rotation_quaternion": list(obj.rotation_quaternion),
+            "rotation_euler_degrees": [math.degrees(a) for a in obj.rotation_euler],
+            "rotation_mode": "QUATERNION"
+        }
+    else:
+        raise ValueError(f"Invalid rotation_mode: {rotation_mode}")
+
+    # Set Euler rotation
+    obj.rotation_mode = order
+    obj.rotation_euler = rotation_rad
+
+    return {
+        "object_name": object_name,
+        "rotation_euler_radians": list(obj.rotation_euler),
+        "rotation_euler_degrees": [math.degrees(a) for a in obj.rotation_euler],
+        "rotation_mode": order,
+        "location": list(obj.location),
+        "scale": list(obj.scale)
+    }
+
+
+def set_object_scale(params):
+    """
+    Set object scale (uniform or per-axis).
+
+    Parameters:
+        object_name: Name of the object
+        scale: Single number for uniform scale, or [x, y, z] for per-axis
+
+    Returns:
+        Current scale, location, and rotation
+    """
+    import math
+
+    object_name = params.get("object_name") or params.get("name")
+    scale = params.get("scale")
+
+    if not object_name:
+        raise ValueError("set_object_scale requires 'object_name' parameter")
+    if scale is None:
+        raise ValueError("set_object_scale requires 'scale' parameter")
+
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        raise ValueError(f"Object '{object_name}' not found")
+
+    # Handle uniform vs non-uniform scale
+    if isinstance(scale, (int, float)):
+        # Uniform scale
+        obj.scale = (scale, scale, scale)
+    elif isinstance(scale, (list, tuple)) and len(scale) == 3:
+        # Non-uniform scale
+        obj.scale = scale
+    else:
+        raise ValueError("scale must be a number or [x, y, z] array")
+
+    return {
+        "object_name": object_name,
+        "scale": list(obj.scale),
+        "location": list(obj.location),
+        "rotation_euler_degrees": [math.degrees(a) for a in obj.rotation_euler]
+    }
+
+
+def create_primitive(params):
+    """
+    Create a primitive object (cube, sphere, cylinder, cone, torus, plane, monkey).
+
+    Parameters:
+        primitive_type: Type of primitive to create
+        name: Optional custom name
+        location: Optional [x, y, z] location
+        rotation: Optional [x, y, z] rotation in degrees
+        scale: Optional uniform or [x, y, z] scale
+        size: Optional size parameter
+
+    Returns:
+        Object info with name, type, location
+    """
+    import math
+
+    primitive_type = (params.get("primitive_type") or params.get("type", "")).lower()
+    name = params.get("name")
+    location = params.get("location", [0, 0, 0])
+    rotation = params.get("rotation", [0, 0, 0])
+    scale_param = params.get("scale", 1.0)
+    size = params.get("size", 2.0)
+
+    if not primitive_type:
+        raise ValueError("create_primitive requires 'primitive_type' parameter")
+
+    # Map primitive types to operators
+    operators = {
+        "cube": lambda: bpy.ops.mesh.primitive_cube_add(size=size, location=location),
+        "sphere": lambda: bpy.ops.mesh.primitive_uv_sphere_add(radius=size/2, location=location),
+        "cylinder": lambda: bpy.ops.mesh.primitive_cylinder_add(radius=size/2, depth=size, location=location),
+        "cone": lambda: bpy.ops.mesh.primitive_cone_add(radius1=size/2, depth=size, location=location),
+        "torus": lambda: bpy.ops.mesh.primitive_torus_add(major_radius=size/2, minor_radius=size/4, location=location),
+        "plane": lambda: bpy.ops.mesh.primitive_plane_add(size=size, location=location),
+        "monkey": lambda: bpy.ops.mesh.primitive_monkey_add(size=size, location=location)
+    }
+
+    if primitive_type not in operators:
+        raise ValueError(f"Unknown primitive_type: {primitive_type}. Supported: {', '.join(operators.keys())}")
+
+    # Create the primitive
+    operators[primitive_type]()
+
+    # Get the created object (active object)
+    obj = bpy.context.active_object
+
+    # Set custom name if provided
+    if name:
+        obj.name = name
+
+    # Apply rotation
+    obj.rotation_euler = [math.radians(a) for a in rotation]
+
+    # Apply scale
+    if isinstance(scale_param, (int, float)):
+        obj.scale = (scale_param, scale_param, scale_param)
+    else:
+        obj.scale = scale_param
+
+    # Update scene
+    bpy.context.view_layer.update()
+
+    return {
+        "name": obj.name,
+        "type": primitive_type,
+        "location": list(obj.location),
+        "rotation_degrees": rotation,
+        "scale": list(obj.scale)
+    }
+
+
+def duplicate_object(params):
+    """Duplicate object with optional offset."""
+    object_name = params.get("object_name") or params.get("name")
+    new_name = params.get("new_name")
+    offset = params.get("offset", [0, 0, 0])
+    if not object_name:
+        raise ValueError("duplicate_object requires 'object_name'")
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        raise ValueError(f"Object '{object_name}' not found")
+    new_mesh = obj.data.copy() if obj.data else None
+    new_obj = obj.copy()
+    if new_mesh:
+        new_obj.data = new_mesh
+    bpy.context.scene.collection.objects.link(new_obj)
+    if new_name:
+        new_obj.name = new_name
+    new_obj.location = [obj.location[i] + offset[i] for i in range(3)]
+    return {"original": object_name, "duplicate": new_obj.name, "location": list(new_obj.location)}
+
+def delete_object(params):
+    """Delete object from scene."""
+    object_name = params.get("object_name") or params.get("name")
+    if not object_name:
+        raise ValueError("delete_object requires 'object_name'")
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        raise ValueError(f"Object '{object_name}' not found")
+    for collection in obj.users_collection:
+        collection.objects.unlink(obj)
+    bpy.data.objects.remove(obj, do_unlink=True)
+    return {"deleted": object_name, "success": True}
+
+def rename_object(params):
+    """Rename object."""
+    object_name = params.get("object_name") or params.get("name")
+    new_name = params.get("new_name")
+    if not object_name or not new_name:
+        raise ValueError("rename_object requires 'object_name' and 'new_name'")
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        raise ValueError(f"Object '{object_name}' not found")
+    old_name = obj.name
+    obj.name = new_name
+    return {"old_name": old_name, "new_name": obj.name}
+
+
+def set_material(params):
+    """Create/assign material with color."""
+    object_name = params.get("object_name") or params.get("name")
+    material_name = params.get("material_name", "Material")
+    color = params.get("color", [0.8, 0.8, 0.8, 1.0])
+    metallic = params.get("metallic", 0.0)
+    roughness = params.get("roughness", 0.5)
+    if not object_name:
+        raise ValueError("set_material requires 'object_name'")
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        raise ValueError(f"Object '{object_name}' not found")
+    mat = bpy.data.materials.get(material_name)
+    if not mat:
+        mat = bpy.data.materials.new(name=material_name)
+        mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = color
+        bsdf.inputs["Metallic"].default_value = metallic
+        bsdf.inputs["Roughness"].default_value = roughness
+    if obj.data.materials:
+        obj.data.materials[0] = mat
+    else:
+        obj.data.materials.append(mat)
+    return {"object_name": object_name, "material_name": mat.name, "color": list(color), "metallic": metallic, "roughness": roughness}
+
+def set_parent(params):
+    """Set parent-child relationship."""
+    child_name = params.get("child") or params.get("child_name")
+    parent_name = params.get("parent") or params.get("parent_name")
+    keep_transform = params.get("keep_transform", True)
+    if not child_name or not parent_name:
+        raise ValueError("set_parent requires 'child' and 'parent'")
+    child = bpy.data.objects.get(child_name)
+    parent = bpy.data.objects.get(parent_name)
+    if not child:
+        raise ValueError(f"Child '{child_name}' not found")
+    if not parent:
+        raise ValueError(f"Parent '{parent_name}' not found")
+    child.parent = parent
+    if keep_transform:
+        child.matrix_parent_inverse = parent.matrix_world.inverted()
+    return {"child": child_name, "parent": parent_name, "keep_transform": keep_transform}
+
+def set_smooth_shading(params):
+    """Set smooth or flat shading."""
+    object_name = params.get("object_name") or params.get("name")
+    smooth = params.get("smooth", True)
+    if not object_name:
+        raise ValueError("set_smooth_shading requires 'object_name'")
+    obj = bpy.data.objects.get(object_name)
+    if not obj or obj.type != 'MESH':
+        raise ValueError(f"Mesh object '{object_name}' not found")
+    for poly in obj.data.polygons:
+        poly.use_smooth = smooth
+    return {"object_name": object_name, "smooth": smooth}
+
 def measure_distance(params):
     """PROTOTYPE: Measure distance between two objects"""
     obj1_name = params.get("object1")
@@ -187,8 +469,11 @@ def viewport_snapshot(params):
 
     shading = params.get("shading", "solid")
     projection = params.get("projection", "persp")
+    view = params.get("view", "current")  # current, front, back, left, right, top, bottom
     width = params.get("width", 512)
     height = params.get("height", 512)
+    return_base64 = params.get("return_base64", False)
+    filename = params.get("filename")
 
     shading_map = {"solid": "SOLID", "wireframe": "WIREFRAME"}
     if shading not in shading_map:
@@ -198,6 +483,10 @@ def viewport_snapshot(params):
     if projection not in projection_map:
         raise ValueError("projection must be 'persp' or 'ortho'")
 
+    valid_views = ["current", "front", "back", "left", "right", "top", "bottom"]
+    if view not in valid_views:
+        raise ValueError(f"view must be one of {valid_views}")
+
     try:
         width = int(width)
         height = int(height)
@@ -205,6 +494,9 @@ def viewport_snapshot(params):
         raise ValueError("width and height must be integers")
     if width <= 0 or height <= 0:
         raise ValueError("width and height must be positive")
+
+    if bpy.app.background:
+        return {"ok": False, "error": "viewport_snapshot requires Blender UI with a 3D Viewport"}
 
     window = None
     area = None
@@ -225,14 +517,18 @@ def viewport_snapshot(params):
             break
 
     if area is None:
-        raise RuntimeError("Viewport snapshot requires a visible 3D View UI")
+        return {"ok": False, "error": "viewport_snapshot requires Blender UI with a 3D Viewport"}
 
     space = area.spaces.active
     region_3d = space.region_3d
     scene = bpy.context.scene
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    output_dir = os.environ.get("FRIGG_OUTPUT_DIR") or os.path.join(repo_root, "output")
+    os.makedirs(output_dir, exist_ok=True)
 
     original_shading = space.shading.type
     original_view_perspective = region_3d.view_perspective
+    original_view_rotation = region_3d.view_rotation.copy()
     original_resolution_x = scene.render.resolution_x
     original_resolution_y = scene.render.resolution_y
     original_filepath = scene.render.filepath
@@ -240,6 +536,29 @@ def viewport_snapshot(params):
     try:
         space.shading.type = shading_map[shading]
         region_3d.view_perspective = projection_map[projection]
+
+        # Set view orientation if specified
+        if view != "current":
+            import mathutils
+            view_rotations = {
+                "front": mathutils.Euler((1.5708, 0, 0), 'XYZ').to_quaternion(),  # 90° on X
+                "back": mathutils.Euler((1.5708, 0, 3.14159), 'XYZ').to_quaternion(),
+                "right": mathutils.Euler((1.5708, 0, -1.5708), 'XYZ').to_quaternion(),
+                "left": mathutils.Euler((1.5708, 0, 1.5708), 'XYZ').to_quaternion(),
+                "top": mathutils.Euler((0, 0, 0), 'XYZ').to_quaternion(),
+                "bottom": mathutils.Euler((3.14159, 0, 0), 'XYZ').to_quaternion(),
+            }
+            if view in view_rotations:
+                region_3d.view_rotation = view_rotations[view]
+
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        if filename:
+            image_name = filename
+            if not image_name.lower().endswith(".png"):
+                image_name = f"{image_name}.png"
+        else:
+            image_name = f"viewport_{width}x{height}_{shading}_{projection}_{timestamp}.png"
+        image_path = os.path.join(output_dir, image_name)
 
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
             temp_path = tmp.name
@@ -256,20 +575,195 @@ def viewport_snapshot(params):
 
         os.remove(temp_path)
 
-        return {
-            "image": base64.b64encode(image_data).decode("utf-8"),
-            "format": "png",
+        with open(image_path, "wb") as handle:
+            handle.write(image_data)
+
+        result = {
+            "image_path": image_path,
             "width": width,
             "height": height,
             "shading": shading,
             "projection": "ortho" if projection_map[projection] == "ORTHO" else "persp",
+            "view": view,
         }
+        if return_base64:
+            result["image_base64"] = base64.b64encode(image_data).decode("utf-8")
+        return result
     finally:
         space.shading.type = original_shading
         region_3d.view_perspective = original_view_perspective
+        region_3d.view_rotation = original_view_rotation
         scene.render.resolution_x = original_resolution_x
         scene.render.resolution_y = original_resolution_y
         scene.render.filepath = original_filepath
+
+
+def get_bounding_box(params):
+    """
+    SPATIAL COGNITION TOOL: Get bounding box dimensions and bounds
+
+    Returns exact dimensions, world bounds, and volume of an object.
+    Critical for understanding object sizes and spatial relationships.
+    """
+    import mathutils
+
+    object_name = params.get("object_name") or params.get("name")
+    if not object_name:
+        raise ValueError("get_bounding_box requires 'object_name' parameter")
+
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        raise ValueError(f"Object '{object_name}' not found")
+
+    if not hasattr(obj, 'bound_box'):
+        raise ValueError(f"Object '{object_name}' has no bounding box")
+
+    # Get local bounding box
+    bbox_local = obj.bound_box
+
+    # Transform to world space
+    matrix_world = obj.matrix_world
+    bbox_world = [matrix_world @ mathutils.Vector(corner) for corner in bbox_local]
+
+    # Calculate world space min/max
+    min_world = mathutils.Vector((
+        min(corner.x for corner in bbox_world),
+        min(corner.y for corner in bbox_world),
+        min(corner.z for corner in bbox_world)
+    ))
+    max_world = mathutils.Vector((
+        max(corner.x for corner in bbox_world),
+        max(corner.y for corner in bbox_world),
+        max(corner.z for corner in bbox_world)
+    ))
+
+    # Calculate dimensions and center
+    dimensions = max_world - min_world
+    center = (min_world + max_world) / 2
+    volume = dimensions.x * dimensions.y * dimensions.z
+
+    return {
+        "object_name": object_name,
+        "dimensions": {
+            "width": float(dimensions.x),
+            "height": float(dimensions.z),  # Z is height in Blender
+            "depth": float(dimensions.y),
+            "x": float(dimensions.x),
+            "y": float(dimensions.y),
+            "z": float(dimensions.z),
+        },
+        "bounds_world": {
+            "min": [float(min_world.x), float(min_world.y), float(min_world.z)],
+            "max": [float(max_world.x), float(max_world.y), float(max_world.z)],
+            "center": [float(center.x), float(center.y), float(center.z)],
+        },
+        "corners": [[float(c.x), float(c.y), float(c.z)] for c in bbox_world],
+        "volume": float(volume),
+    }
+
+
+def get_spatial_relationships(params):
+    """
+    SPATIAL COGNITION TOOL: Determine spatial relationships between two objects
+
+    Returns relationships like "above", "below", "left_of", "right_of",
+    "in_front_of", "behind" based on relative positions in 3D space.
+
+    Parameters:
+        object1: First object name
+        object2: Second object name (reference point)
+        threshold: Minimum distance to consider a relationship (default 0.1)
+
+    Returns:
+        Dictionary with:
+        - relationships: List of all applicable relationships
+        - primary_relationship: The most dominant relationship
+        - relative_position: Vector from object2 to object1
+        - distance: Euclidean distance between objects
+        - positions: World positions of both objects
+    """
+    import mathutils
+
+    object1_name = params.get("object1") or params.get("object1_name")
+    object2_name = params.get("object2") or params.get("object2_name")
+    threshold = params.get("threshold", 0.1)
+
+    if not object1_name:
+        raise ValueError("get_spatial_relationships requires 'object1' parameter")
+    if not object2_name:
+        raise ValueError("get_spatial_relationships requires 'object2' parameter")
+
+    obj1 = bpy.data.objects.get(object1_name)
+    obj2 = bpy.data.objects.get(object2_name)
+
+    if not obj1:
+        raise ValueError(f"Object '{object1_name}' not found")
+    if not obj2:
+        raise ValueError(f"Object '{object2_name}' not found")
+
+    # Get world locations
+    loc1 = obj1.matrix_world.translation
+    loc2 = obj2.matrix_world.translation
+
+    # Calculate relative position vector (from obj2 to obj1)
+    relative = loc1 - loc2
+
+    # Determine relationships based on axes
+    # X axis: left (-) / right (+)
+    # Y axis: back (-) / front (+)
+    # Z axis: below (-) / above (+)
+
+    relationships = []
+
+    if abs(relative.z) > threshold:
+        if relative.z > 0:
+            relationships.append("above")
+        else:
+            relationships.append("below")
+
+    if abs(relative.x) > threshold:
+        if relative.x > 0:
+            relationships.append("right_of")
+        else:
+            relationships.append("left_of")
+
+    if abs(relative.y) > threshold:
+        if relative.y > 0:
+            relationships.append("in_front_of")
+        else:
+            relationships.append("behind")
+
+    # Calculate distance
+    distance = relative.length
+
+    # Determine primary relationship (largest offset)
+    primary = None
+    if distance > 0:
+        max_offset = max(abs(relative.x), abs(relative.y), abs(relative.z))
+
+        if abs(relative.z) == max_offset:
+            primary = "above" if relative.z > 0 else "below"
+        elif abs(relative.x) == max_offset:
+            primary = "right_of" if relative.x > 0 else "left_of"
+        elif abs(relative.y) == max_offset:
+            primary = "in_front_of" if relative.y > 0 else "behind"
+
+    return {
+        "object1": object1_name,
+        "object2": object2_name,
+        "relationships": relationships,
+        "primary_relationship": primary,
+        "relative_position": {
+            "x": float(relative.x),
+            "y": float(relative.y),
+            "z": float(relative.z)
+        },
+        "distance": float(distance),
+        "positions": {
+            object1_name: [float(loc1.x), float(loc1.y), float(loc1.z)],
+            object2_name: [float(loc2.x), float(loc2.y), float(loc2.z)]
+        }
+    }
 
 
 def handle_request(request):
@@ -283,6 +777,24 @@ def handle_request(request):
             return {"ok": True, "result": get_object_transform(params)}
         if method == "set_object_location":
             return {"ok": True, "result": set_object_location(params)}
+        if method == "set_object_rotation":
+            return {"ok": True, "result": set_object_rotation(params)}
+        if method == "set_object_scale":
+            return {"ok": True, "result": set_object_scale(params)}
+        if method == "create_primitive":
+            return {"ok": True, "result": create_primitive(params)}
+        if method == "duplicate_object":
+            return {"ok": True, "result": duplicate_object(params)}
+        if method == "delete_object":
+            return {"ok": True, "result": delete_object(params)}
+        if method == "rename_object":
+            return {"ok": True, "result": rename_object(params)}
+        if method == "set_material":
+            return {"ok": True, "result": set_material(params)}
+        if method == "set_parent":
+            return {"ok": True, "result": set_parent(params)}
+        if method == "set_smooth_shading":
+            return {"ok": True, "result": set_smooth_shading(params)}
         if method == "scene_info":
             return {"ok": True, "result": scene_info()}
         if method == "list_objects":
@@ -292,9 +804,16 @@ def handle_request(request):
 
         # VISION TOOLS - Core vision capabilities
         if method == "viewport_snapshot":
-            return {"ok": True, "result": viewport_snapshot(params)}
+            result = viewport_snapshot(params)
+            if isinstance(result, dict) and result.get("ok") is False and "error" in result:
+                return result
+            return {"ok": True, "result": result}
 
-        # PROTOTYPE TOOLS - Testing new features
+        # SPATIAL COGNITION TOOLS
+        if method == "get_bounding_box":
+            return {"ok": True, "result": get_bounding_box(params)}
+        if method == "get_spatial_relationships":
+            return {"ok": True, "result": get_spatial_relationships(params)}
         if method == "measure_distance":
             return {"ok": True, "result": measure_distance(params)}
 

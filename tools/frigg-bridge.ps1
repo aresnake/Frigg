@@ -5,6 +5,9 @@ param(
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $bridgeScript = Join-Path $repoRoot "tools\frigg_blender_bridge.py"
+$outputDir = Join-Path $repoRoot "output"
+$env:FRIGG_OUTPUT_DIR = $outputDir
+New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
 
 $bridgeHost = $env:FRIGG_BRIDGE_HOST
 if (-not $bridgeHost) {

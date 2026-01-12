@@ -1,0 +1,15 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "frigg.blender.viewport_snapshot",
+    "arguments": {
+      "shading": "wireframe",
+      "projection": "persp",
+      "width": 512,
+      "height": 512,
+      "filename": "mcp_test_wireframe"
+    }
+  }
+}

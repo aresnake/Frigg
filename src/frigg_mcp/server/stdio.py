@@ -12,6 +12,126 @@ SERVER_INFO = {"name": "frigg-mcp", "version": "0.1.3"}
 # Track if we're shutting down
 _SHUTTING_DOWN = False
 
+# Tool metadata catalog for search/discovery
+TOOL_METADATA = {
+    # CORE
+    "scene_info": {
+        "category": "core",
+        "visibility": "visible",
+        "tags": ["scene", "info", "basics"],
+        "description": "Get basic scene information",
+        "complexity": "simple"
+    },
+    "list_objects": {
+        "category": "core",
+        "visibility": "visible",
+        "tags": ["list", "objects", "scene"],
+        "description": "List all objects in scene",
+        "complexity": "simple"
+    },
+    # TRANSFORMS
+    "set_object_location": {
+        "category": "transforms",
+        "visibility": "visible",
+        "tags": ["move", "position", "location", "transform"],
+        "description": "Set object location/position",
+        "complexity": "simple"
+    },
+    "set_object_rotation": {
+        "category": "transforms",
+        "visibility": "visible",
+        "tags": ["rotate", "rotation", "angle", "transform"],
+        "description": "Set object rotation",
+        "complexity": "simple"
+    },
+    "set_object_scale": {
+        "category": "transforms",
+        "visibility": "visible",
+        "tags": ["scale", "size", "resize", "transform"],
+        "description": "Set object scale",
+        "complexity": "simple"
+    },
+    "get_object_transform": {
+        "category": "transforms",
+        "visibility": "visible",
+        "tags": ["get", "read", "transform", "position"],
+        "description": "Get object transform (location/rotation/scale)",
+        "complexity": "simple"
+    },
+    # VISION
+    "viewport_snapshot": {
+        "category": "vision",
+        "visibility": "visible",
+        "tags": ["view", "screenshot", "image", "render", "vision"],
+        "description": "Capture viewport as image",
+        "complexity": "simple"
+    },
+    "get_bounding_box": {
+        "category": "vision",
+        "visibility": "visible",
+        "tags": ["measure", "dimensions", "size", "bounds"],
+        "description": "Get object bounding box and dimensions",
+        "complexity": "simple"
+    },
+    "get_spatial_relationships": {
+        "category": "vision",
+        "visibility": "visible",
+        "tags": ["spatial", "position", "relationship", "above", "below"],
+        "description": "Determine spatial relationships between objects",
+        "complexity": "simple"
+    },
+    # CREATION (will be added as implemented)
+    "create_primitive": {
+        "category": "creation",
+        "visibility": "visible",
+        "tags": ["create", "primitive", "cube", "sphere", "cylinder", "new"],
+        "description": "Create primitive objects (cube, sphere, cylinder, etc.)",
+        "complexity": "simple"
+    },
+    "duplicate_object": {
+        "category": "creation",
+        "visibility": "visible",
+        "tags": ["duplicate", "copy"],
+        "description": "Duplicate object",
+        "complexity": "simple"
+    },
+    "delete_object": {
+        "category": "operations",
+        "visibility": "visible",
+        "tags": ["delete", "remove"],
+        "description": "Delete object",
+        "complexity": "simple"
+    },
+    "rename_object": {
+        "category": "operations",
+        "visibility": "visible",
+        "tags": ["rename", "name"],
+        "description": "Rename object",
+        "complexity": "simple"
+    },
+    "set_material": {
+        "category": "materials",
+        "visibility": "visible",
+        "tags": ["material", "color", "shader"],
+        "description": "Set material",
+        "complexity": "simple"
+    },
+    "set_parent": {
+        "category": "hierarchy",
+        "visibility": "visible",
+        "tags": ["parent", "hierarchy"],
+        "description": "Parent objects",
+        "complexity": "simple"
+    },
+    "set_smooth_shading": {
+        "category": "materials",
+        "visibility": "visible",
+        "tags": ["smooth", "shading"],
+        "description": "Smooth shading",
+        "complexity": "simple"
+    },
+}
+
 
 def log(message: str) -> None:
     """Log to stderr and optionally to a log file"""
@@ -146,6 +266,30 @@ def tools_list() -> Dict[str, Any]:
                 "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
             },
             {
+                "name": "frigg.search_tools",
+                "description": "Search and discover available Frigg tools by keyword, category, or capability. Use this to find tools for specific tasks.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Keyword to search for (searches in tool names, tags, and descriptions)"
+                        },
+                        "category": {
+                            "type": "string",
+                            "enum": ["core", "transforms", "vision", "creation", "materials", "modifiers", "lighting", "camera", "animation"],
+                            "description": "Filter by tool category"
+                        },
+                        "show_hidden": {
+                            "type": "boolean",
+                            "default": False,
+                            "description": "Include hidden/advanced tools in results"
+                        }
+                    },
+                    "additionalProperties": False,
+                },
+            },
+            {
                 "name": "frigg.blender.bridge_ping",
                 "description": "Ping the Blender bridge server.",
                 "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
@@ -177,6 +321,215 @@ def tools_list() -> Dict[str, Any]:
                     "required": ["name", "location"],
                     "additionalProperties": False,
                 },
+            },
+            {
+                "name": "frigg.blender.set_object_rotation",
+                "description": "Set object rotation. Supports degrees (default), radians, or quaternion. Returns rotation in both degrees and radians.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "object_name": {
+                            "type": "string",
+                            "description": "Name of the object to rotate"
+                        },
+                        "rotation": {
+                            "type": "array",
+                            "items": {"type": "number"},
+                            "minItems": 3,
+                            "maxItems": 3,
+                            "description": "Rotation as [x, y, z] angles"
+                        },
+                        "rotation_mode": {
+                            "type": "string",
+                            "enum": ["degrees", "radians", "quaternion"],
+                            "default": "degrees",
+                            "description": "Input format for rotation values"
+                        },
+                        "order": {
+                            "type": "string",
+                            "enum": ["XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX"],
+                            "default": "XYZ",
+                            "description": "Euler rotation order"
+                        }
+                    },
+                    "required": ["object_name", "rotation"],
+                    "additionalProperties": False,
+                },
+            },
+            {
+                "name": "frigg.blender.set_object_scale",
+                "description": "Set object scale. Supports uniform scale (single number) or per-axis scale ([x, y, z]). Returns current scale and transform.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "object_name": {
+                            "type": "string",
+                            "description": "Name of the object to scale"
+                        },
+                        "scale": {
+                            "description": "Scale factor: number for uniform, or [x, y, z] array for per-axis",
+                            "oneOf": [
+                                {"type": "number"},
+                                {
+                                    "type": "array",
+                                    "items": {"type": "number"},
+                                    "minItems": 3,
+                                    "maxItems": 3
+                                }
+                            ]
+                        }
+                    },
+                    "required": ["object_name", "scale"],
+                    "additionalProperties": False,
+                },
+            },
+            {
+                "name": "frigg.blender.create_primitive",
+                "description": "Create a primitive object (cube, sphere, cylinder, cone, torus, plane, monkey). Unified creation tool.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "primitive_type": {
+                            "type": "string",
+                            "enum": ["cube", "sphere", "cylinder", "cone", "torus", "plane", "monkey"],
+                            "description": "Type of primitive to create"
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Optional custom name for the object"
+                        },
+                        "location": {
+                            "type": "array",
+                            "items": {"type": "number"},
+                            "minItems": 3,
+                            "maxItems": 3,
+                            "description": "Optional location [x, y, z]",
+                            "default": [0, 0, 0]
+                        },
+                        "rotation": {
+                            "type": "array",
+                            "items": {"type": "number"},
+                            "minItems": 3,
+                            "maxItems": 3,
+                            "description": "Optional rotation [x, y, z] in degrees",
+                            "default": [0, 0, 0]
+                        },
+                        "scale": {
+                            "description": "Optional scale (number for uniform, or [x, y, z])",
+                            "oneOf": [
+                                {"type": "number"},
+                                {
+                                    "type": "array",
+                                    "items": {"type": "number"},
+                                    "minItems": 3,
+                                    "maxItems": 3
+                                }
+                            ],
+                            "default": 1.0
+                        },
+                        "size": {
+                            "type": "number",
+                            "description": "Optional size parameter",
+                            "default": 2.0
+                        }
+                    },
+                    "required": ["primitive_type"],
+                    "additionalProperties": False,
+                },
+            },
+            {
+                "name": "frigg.blender.duplicate_object",
+                "description": "Duplicate an object with optional new name and offset.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "object_name": {"type": "string", "description": "Object to duplicate"},
+                        "new_name": {"type": "string", "description": "Optional new name"},
+                        "offset": {
+                            "type": "array",
+                            "items": {"type": "number"},
+                            "minItems": 3,
+                            "maxItems": 3,
+                            "default": [0, 0, 0]
+                        }
+                    },
+                    "required": ["object_name"],
+                    "additionalProperties": False
+                }
+            },
+            {
+                "name": "frigg.blender.delete_object",
+                "description": "Delete an object from the scene.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "object_name": {"type": "string", "description": "Object to delete"}
+                    },
+                    "required": ["object_name"],
+                    "additionalProperties": False
+                }
+            },
+            {
+                "name": "frigg.blender.rename_object",
+                "description": "Rename an object.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "object_name": {"type": "string", "description": "Current name"},
+                        "new_name": {"type": "string", "description": "New name"}
+                    },
+                    "required": ["object_name", "new_name"],
+                    "additionalProperties": False
+                }
+            },
+            {
+                "name": "frigg.blender.set_material",
+                "description": "Create and assign material with color and PBR properties.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "object_name": {"type": "string"},
+                        "material_name": {"type": "string", "default": "Material"},
+                        "color": {
+                            "type": "array",
+                            "items": {"type": "number"},
+                            "minItems": 4,
+                            "maxItems": 4,
+                            "default": [0.8, 0.8, 0.8, 1.0]
+                        },
+                        "metallic": {"type": "number", "default": 0.0, "minimum": 0, "maximum": 1},
+                        "roughness": {"type": "number", "default": 0.5, "minimum": 0, "maximum": 1}
+                    },
+                    "required": ["object_name"],
+                    "additionalProperties": False
+                }
+            },
+            {
+                "name": "frigg.blender.set_parent",
+                "description": "Set parent-child relationship between objects.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "child": {"type": "string"},
+                        "parent": {"type": "string"},
+                        "keep_transform": {"type": "boolean", "default": True}
+                    },
+                    "required": ["child", "parent"],
+                    "additionalProperties": False
+                }
+            },
+            {
+                "name": "frigg.blender.set_smooth_shading",
+                "description": "Set smooth or flat shading on mesh object.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "object_name": {"type": "string"},
+                        "smooth": {"type": "boolean", "default": True}
+                    },
+                    "required": ["object_name"],
+                    "additionalProperties": False
+                }
             },
             {
                 "name": "frigg.blender.scene_info",
@@ -224,6 +577,12 @@ def tools_list() -> Dict[str, Any]:
                             "description": "Projection mode",
                             "default": "persp"
                         },
+                        "view": {
+                            "type": "string",
+                            "enum": ["current", "front", "back", "left", "right", "top", "bottom"],
+                            "description": "View orientation (current uses viewport, others set specific angles)",
+                            "default": "current"
+                        },
                         "width": {
                             "type": "integer",
                             "description": "Image width in pixels",
@@ -237,8 +596,56 @@ def tools_list() -> Dict[str, Any]:
                             "default": 512,
                             "minimum": 64,
                             "maximum": 2048
+                        },
+                        "return_base64": {
+                            "type": "boolean",
+                            "description": "Include base64-encoded image in the response",
+                            "default": False
+                        },
+                        "filename": {
+                            "type": "string",
+                            "description": "Optional output filename (defaults to timestamped PNG)"
                         }
                     },
+                    "additionalProperties": False,
+                },
+            },
+            {
+                "name": "frigg.blender.get_bounding_box",
+                "description": "Get bounding box dimensions, world bounds, and volume of an object. Critical for understanding object sizes and spatial relationships.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "object_name": {
+                            "type": "string",
+                            "description": "Name of the object to get bounding box for"
+                        }
+                    },
+                    "required": ["object_name"],
+                    "additionalProperties": False,
+                },
+            },
+            {
+                "name": "frigg.blender.get_spatial_relationships",
+                "description": "Determine spatial relationships between two objects (above/below, left_of/right_of, in_front_of/behind). Returns the primary relationship and all applicable relationships based on relative positions in 3D space.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "object1": {
+                            "type": "string",
+                            "description": "First object name"
+                        },
+                        "object2": {
+                            "type": "string",
+                            "description": "Second object name (reference point)"
+                        },
+                        "threshold": {
+                            "type": "number",
+                            "description": "Minimum distance threshold to consider a relationship (default 0.1)",
+                            "default": 0.1
+                        }
+                    },
+                    "required": ["object1", "object2"],
                     "additionalProperties": False,
                 },
             },
@@ -249,6 +656,55 @@ def tools_list() -> Dict[str, Any]:
 def handle_call(name: str, arguments: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if name == "frigg.ping":
         return {"ok": True, "result": {"message": "pong"}}
+
+    if name == "frigg.search_tools":
+        # Local tool - no bridge needed
+        args = arguments or {}
+        query = args.get("query", "").lower()
+        category_filter = args.get("category", "").lower()
+        show_hidden = args.get("show_hidden", False)
+
+        results = []
+        categories_found = set()
+
+        for tool_name, metadata in TOOL_METADATA.items():
+            # Filter by visibility
+            if not show_hidden and metadata["visibility"] != "visible":
+                continue
+
+            # Filter by category
+            if category_filter and metadata["category"] != category_filter:
+                continue
+
+            # Filter by query (search in name, tags, description)
+            if query:
+                searchable = (
+                    tool_name.lower() + " " +
+                    " ".join(metadata["tags"]) + " " +
+                    metadata["description"].lower()
+                )
+                if query not in searchable:
+                    continue
+
+            # Match found
+            results.append({
+                "name": f"frigg.blender.{tool_name}",
+                "category": metadata["category"],
+                "description": metadata["description"],
+                "visibility": metadata["visibility"],
+                "tags": metadata["tags"],
+                "complexity": metadata["complexity"]
+            })
+            categories_found.add(metadata["category"])
+
+        return {
+            "ok": True,
+            "result": {
+                "tools": results,
+                "total_found": len(results),
+                "categories_found": sorted(list(categories_found))
+            }
+        }
 
     if name == "frigg.blender.scene_info":
         response = call_bridge("scene_info", {})
@@ -268,6 +724,51 @@ def handle_call(name: str, arguments: Optional[Dict[str, Any]]) -> Dict[str, Any
         response = call_bridge("set_object_location", args)
         return response
 
+    if name == "frigg.blender.set_object_rotation":
+        args = arguments or {}
+        response = call_bridge("set_object_rotation", args)
+        return response
+
+    if name == "frigg.blender.set_object_scale":
+        args = arguments or {}
+        response = call_bridge("set_object_scale", args)
+        return response
+
+    if name == "frigg.blender.create_primitive":
+        args = arguments or {}
+        response = call_bridge("create_primitive", args)
+        return response
+
+    if name == "frigg.blender.duplicate_object":
+        args = arguments or {}
+        response = call_bridge("duplicate_object", args)
+        return response
+
+    if name == "frigg.blender.delete_object":
+        args = arguments or {}
+        response = call_bridge("delete_object", args)
+        return response
+
+    if name == "frigg.blender.rename_object":
+        args = arguments or {}
+        response = call_bridge("rename_object", args)
+        return response
+
+    if name == "frigg.blender.set_material":
+        args = arguments or {}
+        response = call_bridge("set_material", args)
+        return response
+
+    if name == "frigg.blender.set_parent":
+        args = arguments or {}
+        response = call_bridge("set_parent", args)
+        return response
+
+    if name == "frigg.blender.set_smooth_shading":
+        args = arguments or {}
+        response = call_bridge("set_smooth_shading", args)
+        return response
+
     if name == "frigg.blender.list_objects":
         response = call_bridge("list_objects", {})
         return response
@@ -280,6 +781,16 @@ def handle_call(name: str, arguments: Optional[Dict[str, Any]]) -> Dict[str, Any
     if name == "frigg.blender.viewport_snapshot":
         args = arguments or {}
         response = call_bridge("viewport_snapshot", args)
+        return response
+
+    if name == "frigg.blender.get_bounding_box":
+        args = arguments or {}
+        response = call_bridge("get_bounding_box", args)
+        return response
+
+    if name == "frigg.blender.get_spatial_relationships":
+        args = arguments or {}
+        response = call_bridge("get_spatial_relationships", args)
         return response
 
     raise ValueError(f"Unknown tool: {name}")
