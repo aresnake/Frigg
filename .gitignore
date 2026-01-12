@@ -1,9 +1,14 @@
+# --- local outputs ---
+output/
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# --- local test artifacts ---
+test_mcp_viewport.json
+test_transforms_mcp.md
+
+# --- python caches ---
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-.venv/
-logs/
-.frigg_bridge.json
-*.egg-info/

@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: frigg-mcp
+Version: 0.0.0
+Summary: Frigg MCP Blender bridge
+Requires-Python: >=3.9

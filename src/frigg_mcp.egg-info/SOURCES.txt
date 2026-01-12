@@ -1,0 +1,10 @@
+README.md
+pyproject.toml
+src/frigg_mcp/__init__.py
+src/frigg_mcp.egg-info/PKG-INFO
+src/frigg_mcp.egg-info/SOURCES.txt
+src/frigg_mcp.egg-info/dependency_links.txt
+src/frigg_mcp.egg-info/top_level.txt
+src/frigg_mcp/server/__init__.py
+src/frigg_mcp/server/stdio.py
+tests/test_stdio_roundtrip.py
