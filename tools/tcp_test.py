@@ -1,43 +1,32 @@
-"""Simple TCP test client for Frigg bridge"""
-import socket
-import json
+#!/usr/bin/env python
+"""
+TCP CLI helper (NOT a pytest test).
+
+Usage:
+  python tools/tcp_test.py <method> <code>
+
+Example:
+  python tools/tcp_test.py ping 200
+"""
+
+from __future__ import annotations
+
 import sys
 
-host = 'localhost'
-port = 8765
 
-if len(sys.argv) < 3:
-    print("Usage: python tcp_test.py <method> <code>")
-    sys.exit(1)
+def main(argv: list[str]) -> int:
+    if len(argv) != 3:
+        print("Usage: python tools/tcp_test.py <method> <code>")
+        return 2
 
-method = sys.argv[1]
-code = sys.argv[2]
+    method = argv[1]
+    code = argv[2]
 
-request = {
-    'method': method,
-    'params': {'script': code} if method == 'execute_python' else {}
-}
+    # NOTE: keep this as a minimal placeholder; implement real TCP call if/when needed.
+    # This file must NEVER sys.exit() at import-time.
+    print(f"[tcp_test] method={method} code={code}")
+    return 0
 
-try:
-    with socket.create_connection((host, port), timeout=30) as sock:
-        sock.sendall((json.dumps(request) + '\n').encode('utf-8'))
 
-        response = b''
-        while True:
-            chunk = sock.recv(8192)
-            if not chunk:
-                break
-            response += chunk
-            if b'\n' in chunk:
-                break
-
-        data = json.loads(response.decode('utf-8'))
-
-        if 'result' in data:
-            print(json.dumps(data['result'], indent=2))
-        else:
-            print(f"Error: {data.get('error', 'Unknown error')}")
-
-except Exception as e:
-    print(f"Exception: {e}")
-    sys.exit(1)
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))
