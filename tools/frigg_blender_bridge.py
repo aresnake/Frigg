@@ -5,11 +5,13 @@ import sys
 import threading
 import time
 import traceback
+import queue
 
 import bpy
 
 STOP = False
 SERVER_SOCKET = None
+REQUEST_QUEUE = queue.Queue()
 
 
 def log(message: str) -> None:
@@ -394,40 +396,64 @@ def viewport_snapshot(params):
 
 
 def handle_request(request):
-    method = request.get("method")
-    params = request.get("params", {})
+    method = request.get("method") if isinstance(request, dict) else None
+    params = request.get("params", {}) if isinstance(request, dict) else {}
 
     try:
         if method == "bridge_ping":
             return {"ok": True, "result": {"pong": True, "time": time.time()}}
         if method == "get_object_transform":
-            return {"result": get_object_transform(params)}
+            return {"ok": True, "result": get_object_transform(params)}
         if method == "set_object_location":
-            return {"result": set_object_location(params)}
+            return {"ok": True, "result": set_object_location(params)}
         if method == "scene_info":
-            return {"result": scene_info()}
+            return {"ok": True, "result": scene_info()}
         if method == "list_objects":
-            return {"result": list_objects()}
+            return {"ok": True, "result": list_objects()}
         if method == "move_object":
-            return {"result": move_object(params)}
+            return {"ok": True, "result": move_object(params)}
 
         # VISION TOOLS - Core vision capabilities
         if method == "viewport_snapshot":
-            return {"result": viewport_snapshot(params)}
+            return {"ok": True, "result": viewport_snapshot(params)}
 
         # PROTOTYPE TOOLS - Testing new features
         if method == "measure_distance":
-            return {"result": measure_distance(params)}
+            return {"ok": True, "result": measure_distance(params)}
 
         # META-TOOLS - Development utilities
         if method == "execute_python":
-            return {"result": execute_python(params)}
+            return {"ok": True, "result": execute_python(params)}
 
-        return {"error": f"Unknown method: {method}"}
+        return {"ok": False, "error": f"Unknown method: {method}"}
     except Exception as exc:
         log(f"Error handling {method}: {exc}")
         log(traceback.format_exc())
-        return {"error": str(exc)}
+        return {"ok": False, "error": str(exc)}
+
+
+def _queue_request(request):
+    job = {"request": request, "event": threading.Event(), "response": None}
+    REQUEST_QUEUE.put(job)
+    return job
+
+
+def _process_requests():
+    if STOP:
+        return None
+    while True:
+        try:
+            job = REQUEST_QUEUE.get_nowait()
+        except queue.Empty:
+            break
+        try:
+            job["response"] = handle_request(job["request"])
+        except Exception as exc:
+            log(f"Error processing request: {exc}")
+            log(traceback.format_exc())
+            job["response"] = {"ok": False, "error": str(exc)}
+        job["event"].set()
+    return 0.05
 
 
 def _accept_loop(server: socket.socket) -> None:
@@ -452,23 +478,28 @@ def _accept_loop(server: socket.socket) -> None:
                     continue
                 try:
                     request = json.loads(line)
-                    response = handle_request(request)
+                    job = _queue_request(request)
+                    job["event"].wait()
+                    response = job["response"]
+                    if response is None:
+                        response = {"ok": False, "error": "No response from main thread"}
                 except Exception as exc:
                     log(traceback.format_exc())
-                    response = {"error": str(exc)}
+                    response = {"ok": False, "error": str(exc)}
                 payload = json.dumps(response) + "\n"
                 conn.sendall(payload.encode("utf-8"))
-
-
-def _keepalive():
-    if STOP:
-        return None
-    return 0.5
 
 
 def _request_shutdown() -> None:
     global STOP
     STOP = True
+    while True:
+        try:
+            job = REQUEST_QUEUE.get_nowait()
+        except queue.Empty:
+            break
+        job["response"] = {"ok": False, "error": "Bridge shutting down"}
+        job["event"].set()
     server = SERVER_SOCKET
     if server is not None:
         try:
@@ -501,7 +532,7 @@ def serve(host: str, port: int) -> None:
     thread = threading.Thread(target=_accept_loop, args=(server,), daemon=True)
     thread.start()
     _register_shutdown_handler()
-    bpy.app.timers.register(_keepalive, first_interval=0.5, persistent=True)
+    bpy.app.timers.register(_process_requests, first_interval=0.05, persistent=True)
 
 
 if __name__ == "__main__":
