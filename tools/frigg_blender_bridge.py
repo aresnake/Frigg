@@ -179,220 +179,97 @@ def execute_python(params):
 
 def viewport_snapshot(params):
     """
-    VISION TOOL: Capture viewport snapshot using camera render
-
-    Uses standard Blender rendering (WORKBENCH engine) instead of viewport opengl
-    because the bridge runs without UI context.
+    VISION TOOL: Capture viewport snapshot (UI-only).
     """
     import base64
     import tempfile
-    import bpy
     import os
-    import mathutils
 
-    # Parameters with defaults
-    shading = params.get("shading", "solid")  # solid | wireframe | material | rendered
-    projection = params.get("projection", "perspective")  # perspective | ortho
-    view = params.get("view", "current")  # current | camera | front | back | left | right | top | bottom
+    shading = params.get("shading", "solid")
+    projection = params.get("projection", "persp")
     width = params.get("width", 512)
     height = params.get("height", 512)
-    format_type = params.get("format", "PNG")  # PNG | JPEG
 
-    # Optional parameters
-    target = params.get("target", None)
-    isolate = params.get("isolate", False)
-    fit_to_view = params.get("fit_to_view", False)
+    shading_map = {"solid": "SOLID", "wireframe": "WIREFRAME"}
+    if shading not in shading_map:
+        raise ValueError("shading must be 'solid' or 'wireframe'")
 
-    # Validate parameters
-    valid_shadings = ["solid", "wireframe", "material", "rendered"]
-    if shading not in valid_shadings:
-        raise ValueError(f"shading must be one of {valid_shadings}, got '{shading}'")
-
-    valid_projections = ["perspective", "ortho"]
-    if projection not in valid_projections:
-        raise ValueError(f"projection must be one of {valid_projections}, got '{projection}'")
-
-    valid_views = ["current", "camera", "front", "back", "left", "right", "top", "bottom"]
-    if view not in valid_views:
-        raise ValueError(f"view must be one of {valid_views}, got '{view}'")
-
-    scene = bpy.context.scene
-
-    # Store original settings
-    original_resolution_x = scene.render.resolution_x
-    original_resolution_y = scene.render.resolution_y
-    original_resolution_percentage = scene.render.resolution_percentage
-    original_filepath = scene.render.filepath
-    original_file_format = scene.render.image_settings.file_format
-    original_engine = scene.render.engine
-
-    # Store original camera (if exists)
-    original_camera = scene.camera
-    temp_camera_created = False
-
-    # Store visibility if isolating
-    original_visibility = {}
-    if isolate and target:
-        for obj in bpy.data.objects:
-            original_visibility[obj.name] = obj.hide_render
+    projection_map = {"persp": "PERSP", "perspective": "PERSP", "ortho": "ORTHO"}
+    if projection not in projection_map:
+        raise ValueError("projection must be 'persp' or 'ortho'")
 
     try:
-        # Create/setup camera for snapshot
-        if view == "camera" and original_camera:
-            # Use existing camera
-            camera = original_camera
-        else:
-            # Create temporary camera manually (no bpy.ops - no UI context needed!)
-            camera_data = bpy.data.cameras.new(name="_frigg_temp_camera_data")
-            camera = bpy.data.objects.new("_frigg_temp_camera", camera_data)
-            scene.collection.objects.link(camera)
+        width = int(width)
+        height = int(height)
+    except (TypeError, ValueError):
+        raise ValueError("width and height must be integers")
+    if width <= 0 or height <= 0:
+        raise ValueError("width and height must be positive")
 
-            # Update depsgraph before assigning as scene camera to avoid crash
-            import bpy
-            bpy.context.view_layer.update()
-
-            scene.camera = camera
-            temp_camera_created = True
-
-            # Position camera based on view
-            if view == "current":
-                # Try to get current viewport view
-                for window in bpy.context.window_manager.windows:
-                    for area in window.screen.areas:
-                        if area.type == 'VIEW_3D':
-                            space = area.spaces.active
-                            region_3d = space.region_3d
-
-                            # Copy viewport camera position
-                            camera.location = region_3d.view_location.copy()
-                            camera.rotation_euler = region_3d.view_rotation.to_euler()
-
-                            # Adjust distance
-                            view_dir = region_3d.view_rotation @ mathutils.Vector((0, 0, -1))
-                            camera.location -= view_dir * region_3d.view_distance
-                            break
+    window = None
+    area = None
+    region = None
+    for candidate_window in bpy.context.window_manager.windows:
+        for candidate_area in candidate_window.screen.areas:
+            if candidate_area.type != "VIEW_3D":
+                continue
+            for candidate_region in candidate_area.regions:
+                if candidate_region.type == "WINDOW":
+                    window = candidate_window
+                    area = candidate_area
+                    region = candidate_region
                     break
-            else:
-                # Standard orthographic views
-                view_configs = {
-                    "front": ((0, -10, 0), (90, 0, 0)),
-                    "back": ((0, 10, 0), (90, 0, 180)),
-                    "right": ((10, 0, 0), (90, 0, 90)),
-                    "left": ((-10, 0, 0), (90, 0, -90)),
-                    "top": ((0, 0, 10), (0, 0, 0)),
-                    "bottom": ((0, 0, -10), (180, 0, 0))
-                }
+            if area:
+                break
+        if area:
+            break
 
-                if view in view_configs:
-                    loc, rot = view_configs[view]
-                    camera.location = loc
-                    camera.rotation_euler = [r * 3.14159 / 180 for r in rot]
+    if area is None:
+        raise RuntimeError("Viewport snapshot requires a visible 3D View UI")
 
-        # Set camera projection
-        if projection == "ortho":
-            camera.data.type = 'ORTHO'
-            camera.data.ortho_scale = 10.0  # Default ortho scale
-        else:
-            camera.data.type = 'PERSP'
+    space = area.spaces.active
+    region_3d = space.region_3d
+    scene = bpy.context.scene
 
-        # Handle target isolation and framing
-        if target:
-            target_obj = bpy.data.objects.get(target)
-            if not target_obj:
-                raise ValueError(f"Target object '{target}' not found")
+    original_shading = space.shading.type
+    original_view_perspective = region_3d.view_perspective
+    original_resolution_x = scene.render.resolution_x
+    original_resolution_y = scene.render.resolution_y
+    original_filepath = scene.render.filepath
 
-            if isolate:
-                # Hide all objects except target in render
-                for obj in bpy.data.objects:
-                    obj.hide_render = (obj.name != target)
+    try:
+        space.shading.type = shading_map[shading]
+        region_3d.view_perspective = projection_map[projection]
 
-            if fit_to_view:
-                # Point camera at target
-                direction = target_obj.location - camera.location
-                rot_quat = direction.to_track_quat('-Z', 'Y')
-                camera.rotation_euler = rot_quat.to_euler()
-
-        # Setup render settings
-        scene.render.resolution_x = width
-        scene.render.resolution_y = height
-        scene.render.resolution_percentage = 100
-        scene.render.image_settings.file_format = format_type
-
-        # Set render engine based on shading
-        if shading == "rendered":
-            # Keep original engine (EEVEE/CYCLES)
-            pass
-        elif shading == "material":
-            scene.render.engine = 'BLENDER_EEVEE'
-        else:
-            # Use WORKBENCH for solid/wireframe (fastest)
-            scene.render.engine = 'BLENDER_WORKBENCH'
-
-            # Configure workbench shading
-            if shading == "wireframe":
-                scene.display.shading.type = 'WIREFRAME'
-            else:  # solid
-                scene.display.shading.type = 'SOLID'
-
-        # Create temp file path
-        with tempfile.NamedTemporaryFile(suffix=f".{format_type.lower()}", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
             temp_path = tmp.name
 
+        scene.render.resolution_x = width
+        scene.render.resolution_y = height
         scene.render.filepath = temp_path
 
-        # Render!
-        bpy.ops.render.render(write_still=True)
+        with bpy.context.temp_override(window=window, area=area, region=region):
+            bpy.ops.render.opengl(write_still=True)
 
-        # Read image and encode to base64
-        if os.path.exists(temp_path):
-            with open(temp_path, 'rb') as f:
-                image_data = f.read()
-                base64_image = base64.b64encode(image_data).decode('utf-8')
+        with open(temp_path, "rb") as handle:
+            image_data = handle.read()
 
-            # Clean up temp file
-            os.remove(temp_path)
-        else:
-            raise RuntimeError(f"Render file not created at {temp_path}")
-
-        # Prepare result
-        view_info = {
-            "shading": shading,
-            "projection": projection,
-            "view": view,
-            "camera_location": list(camera.location),
-            "camera_rotation": list(camera.rotation_euler),
-            "render_engine": scene.render.engine
-        }
+        os.remove(temp_path)
 
         return {
-            "success": True,
-            "image": base64_image,
-            "format": format_type,
+            "image": base64.b64encode(image_data).decode("utf-8"),
+            "format": "png",
             "width": width,
             "height": height,
-            "view_info": view_info
+            "shading": shading,
+            "projection": "ortho" if projection_map[projection] == "ORTHO" else "persp",
         }
-
     finally:
-        # Restore settings
+        space.shading.type = original_shading
+        region_3d.view_perspective = original_view_perspective
         scene.render.resolution_x = original_resolution_x
         scene.render.resolution_y = original_resolution_y
-        scene.render.resolution_percentage = original_resolution_percentage
         scene.render.filepath = original_filepath
-        scene.render.image_settings.file_format = original_file_format
-        scene.render.engine = original_engine
-        scene.camera = original_camera
-
-        # Delete temporary camera
-        if temp_camera_created and camera:
-            bpy.data.objects.remove(camera, do_unlink=True)
-
-        # Restore visibility
-        if isolate and target:
-            for obj_name, was_hidden in original_visibility.items():
-                obj = bpy.data.objects.get(obj_name)
-                if obj:
-                    obj.hide_render = was_hidden
 
 
 def handle_request(request):

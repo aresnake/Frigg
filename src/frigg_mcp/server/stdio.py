@@ -208,27 +208,21 @@ def tools_list() -> Dict[str, Any]:
             },
             {
                 "name": "frigg.blender.viewport_snapshot",
-                "description": "Capture a viewport snapshot as base64 PNG image. The fundamental VISION tool that allows Claude to see the scene. Returns base64-encoded PNG image data.",
+                "description": "Capture a viewport snapshot from the UI as base64 PNG image.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "shading": {
                             "type": "string",
-                            "enum": ["solid", "wireframe", "material", "rendered"],
+                            "enum": ["solid", "wireframe"],
                             "description": "Shading mode for the viewport",
                             "default": "solid"
                         },
                         "projection": {
                             "type": "string",
-                            "enum": ["perspective", "ortho"],
-                            "description": "Camera projection type",
-                            "default": "perspective"
-                        },
-                        "view": {
-                            "type": "string",
-                            "enum": ["current", "camera", "front", "back", "left", "right", "top", "bottom"],
-                            "description": "View orientation",
-                            "default": "current"
+                            "enum": ["persp", "ortho"],
+                            "description": "Projection mode",
+                            "default": "persp"
                         },
                         "width": {
                             "type": "integer",
@@ -243,20 +237,6 @@ def tools_list() -> Dict[str, Any]:
                             "default": 512,
                             "minimum": 64,
                             "maximum": 2048
-                        },
-                        "target": {
-                            "type": "string",
-                            "description": "Optional: Focus on specific object name"
-                        },
-                        "isolate": {
-                            "type": "boolean",
-                            "description": "Hide all objects except target",
-                            "default": False
-                        },
-                        "fit_to_view": {
-                            "type": "boolean",
-                            "description": "Frame target object in view",
-                            "default": False
                         }
                     },
                     "additionalProperties": False,
