@@ -266,6 +266,108 @@ def prototype_get_scene_graph():
         return result
 
 
+def prototype_viewport_snapshot(shading="solid", projection="perspective", view="current", width=512, height=512):
+    """
+    Capture viewport snapshot using camera render
+
+    The VISION tool - allows Claude to see the scene!
+    """
+    print(f" Capturing viewport snapshot...")
+    print(f"   Shading: {shading}")
+    print(f"   Projection: {projection}")
+    print(f"   View: {view}")
+    print(f"   Resolution: {width}x{height}")
+
+    result = call_bridge("viewport_snapshot", {
+        "shading": shading,
+        "projection": projection,
+        "view": view,
+        "width": width,
+        "height": height
+    })
+
+    if "error" in result:
+        print(f" Error: {result['error']}")
+        return result
+
+    if "result" in result:
+        data = result["result"]
+
+        if data.get("success"):
+            print(f" Success!")
+            print(f"   Format: {data['format']}")
+            print(f"   Image data: {len(data['image'])} chars (base64)")
+            print(f"   View info: {data['view_info']['view']} / {data['view_info']['shading']}")
+            print(f"   Render engine: {data['view_info']['render_engine']}")
+
+            # Save to file for inspection
+            import base64
+            import tempfile
+            import os
+
+            temp_path = os.path.join(tempfile.gettempdir(), f"frigg_snapshot_{shading}_{view}.png")
+            with open(temp_path, 'wb') as f:
+                f.write(base64.b64decode(data['image']))
+
+            print(f"   Saved to: {temp_path}")
+        else:
+            print(f" Failed: {data}")
+
+        return result
+    else:
+        print(f" Unexpected response: {result}")
+        return result
+
+
+def prototype_execute_python(script: str):
+    """
+    Execute arbitrary Python code in Blender
+
+    This is a META-TOOL for rapid prototyping.
+    Allows testing new tool ideas without restarting the bridge.
+    """
+    print(f" Executing Python script in Blender...")
+    print(f"   Script length: {len(script)} characters")
+
+    result = call_bridge("execute_python", {"script": script})
+
+    if "error" in result:
+        print(f" Error: {result['error']}")
+        return result
+
+    if "result" in result:
+        data = result["result"]
+
+        if data.get("success"):
+            print(f" Script executed successfully!")
+
+            if data.get("stdout"):
+                print(f"   stdout:")
+                for line in data["stdout"].strip().split("\n"):
+                    print(f"     {line}")
+
+            if data.get("stderr"):
+                print(f"   stderr:")
+                for line in data["stderr"].strip().split("\n"):
+                    print(f"     {line}")
+
+            if data.get("result") is not None:
+                print(f"   result: {data['result']}")
+        else:
+            print(f" Script failed!")
+            print(f"   Error: {data.get('error')}")
+            print(f"   Type: {data.get('error_type')}")
+            if data.get("traceback"):
+                print(f"   Traceback:")
+                for line in data["traceback"].strip().split("\n"):
+                    print(f"     {line}")
+
+        return result
+    else:
+        print(f" Unexpected response: {result}")
+        return result
+
+
 # ============================================================================
 # TEST SUITE
 # ============================================================================
@@ -319,12 +421,14 @@ def main():
     if len(sys.argv) < 2:
         print(__doc__)
         print("\nAvailable prototype tools:")
+        print("  - viewport_snapshot [shading] [projection] [view] [width] [height]")
         print("  - get_viewport_screenshot [width] [height] [angle]")
         print("  - measure_distance <obj1> <obj2>")
         print("  - get_spatial_relationships <object>")
         print("  - check_intersection <obj1> <obj2>")
         print("  - render_preview [samples] [width] [height]")
         print("  - get_scene_graph")
+        print("  - execute_python <script_file>")
         print("  - test_all")
         sys.exit(1)
 
@@ -333,6 +437,14 @@ def main():
 
     if tool == "test_all":
         test_all()
+
+    elif tool == "viewport_snapshot":
+        shading = args[0] if len(args) > 0 else "solid"
+        projection = args[1] if len(args) > 1 else "perspective"
+        view = args[2] if len(args) > 2 else "current"
+        width = int(args[3]) if len(args) > 3 else 512
+        height = int(args[4]) if len(args) > 4 else 512
+        prototype_viewport_snapshot(shading, projection, view, width, height)
 
     elif tool == "get_viewport_screenshot":
         width = int(args[0]) if len(args) > 0 else 512
@@ -366,6 +478,26 @@ def main():
 
     elif tool == "get_scene_graph":
         prototype_get_scene_graph()
+
+    elif tool == "execute_python":
+        if len(args) < 1:
+            print("Error: Need script file path or inline script")
+            print("\nExamples:")
+            print("  python tools/prototype_tools.py execute_python test_script.py")
+            print("  python tools/prototype_tools.py execute_python \"print('Hello from Blender')\"")
+            sys.exit(1)
+
+        script_arg = args[0]
+        # Check if it's a file path
+        if Path(script_arg).exists():
+            with open(script_arg, 'r') as f:
+                script = f.read()
+            print(f"Loading script from: {script_arg}")
+        else:
+            # Treat as inline script
+            script = script_arg
+
+        prototype_execute_python(script)
 
     else:
         print(f"Unknown tool: {tool}")
