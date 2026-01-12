@@ -12,3 +12,6 @@ __pycache__/
 # Logs
 logs/
 *.log
+
+# Local outputs
+output/
