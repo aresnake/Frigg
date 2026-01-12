@@ -1,14 +1,36 @@
-# --- local outputs ---
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Virtualenv ---
+.venv/
+venv/
+ENV/
+env/
+
+# --- Local outputs/artifacts ---
 output/
 *.png
 *.jpg
 *.jpeg
 *.webp
+*.blend1
+*.tmp
 
-# --- local test artifacts ---
+# --- Logs ---
+logs/
+*.log
+
+# --- Local test artifacts ---
 test_mcp_viewport.json
 test_transforms_mcp.md
-
-# --- python caches ---
-__pycache__/
-*.pyc
