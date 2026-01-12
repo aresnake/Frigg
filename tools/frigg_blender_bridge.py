@@ -179,6 +179,201 @@ def set_object_scale(params):
     }
 
 
+def select_object(params):
+    name = params.get("name") or params.get("object_name")
+    action = (params.get("action") or "SET").upper()
+    if not name:
+        raise ValueError("select_object requires 'name'")
+    obj = bpy.data.objects.get(name)
+    if not obj:
+        raise ValueError(f"Object '{name}' not found")
+
+    if action == "SET":
+        bpy.ops.object.select_all(action='DESELECT')
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+    elif action == "ADD":
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+    elif action == "REMOVE":
+        obj.select_set(False)
+        if bpy.context.view_layer.objects.active == obj:
+            bpy.context.view_layer.objects.active = None
+    elif action == "TOGGLE":
+        obj.select_set(not obj.select_get())
+        if obj.select_get():
+            bpy.context.view_layer.objects.active = obj
+    else:
+        raise ValueError("select_object action must be SET, ADD, REMOVE, or TOGGLE")
+
+    active = bpy.context.view_layer.objects.active
+    return {
+        "name": obj.name,
+        "selected": obj.select_get(),
+        "active": active.name if active else None,
+    }
+
+
+def get_transform(params):
+    import math
+
+    name = params.get("name") or params.get("object_name")
+    space = (params.get("space") or "LOCAL").upper()
+    if not name:
+        raise ValueError("get_transform requires 'name'")
+    obj = bpy.data.objects.get(name)
+    if not obj:
+        raise ValueError(f"Object '{name}' not found")
+    if space not in ("LOCAL", "WORLD"):
+        raise ValueError("space must be LOCAL or WORLD")
+
+    if space == "WORLD":
+        loc, rot, scale = obj.matrix_world.decompose()
+        rot_euler = rot.to_euler("XYZ")
+        location = [float(v) for v in loc]
+        rotation = [math.degrees(a) for a in rot_euler]
+        scale_values = [float(v) for v in scale]
+    else:
+        location = [float(v) for v in obj.location]
+        rotation = [math.degrees(a) for a in obj.rotation_euler]
+        scale_values = [float(v) for v in obj.scale]
+
+    return {
+        "name": obj.name,
+        "space": space,
+        "location": location,
+        "rotation": rotation,
+        "rotation_mode": "DEGREES",
+        "scale": scale_values,
+    }
+
+
+def set_transform(params):
+    import math
+    import mathutils
+
+    name = params.get("name") or params.get("object_name")
+    space = (params.get("space") or "LOCAL").upper()
+    rotation_mode = (params.get("rotation_mode") or "DEGREES").upper()
+    location = params.get("location")
+    rotation = params.get("rotation")
+    scale = params.get("scale")
+
+    if not name:
+        raise ValueError("set_transform requires 'name'")
+    obj = bpy.data.objects.get(name)
+    if not obj:
+        raise ValueError(f"Object '{name}' not found")
+    if space not in ("LOCAL", "WORLD"):
+        raise ValueError("space must be LOCAL or WORLD")
+    if rotation_mode not in ("DEGREES", "RADIANS"):
+        raise ValueError("rotation_mode must be DEGREES or RADIANS")
+
+    def _scale_to_vector(value, fallback):
+        if value is None:
+            return fallback
+        if isinstance(value, (int, float)):
+            return mathutils.Vector((value, value, value))
+        if isinstance(value, (list, tuple)) and len(value) == 3:
+            return mathutils.Vector(value)
+        raise ValueError("scale must be a number or [x, y, z]")
+
+    if space == "LOCAL":
+        if location is not None:
+            obj.location = location
+        if rotation is not None:
+            rot_values = rotation
+            if rotation_mode == "DEGREES":
+                rot_values = [math.radians(a) for a in rotation]
+            obj.rotation_euler = rot_values
+        if scale is not None:
+            obj.scale = _scale_to_vector(scale, obj.scale)
+    else:
+        current_loc, current_rot, current_scale = obj.matrix_world.decompose()
+        target_loc = current_loc
+        target_rot = current_rot
+        target_scale = current_scale
+
+        if location is not None:
+            target_loc = mathutils.Vector(location)
+        if rotation is not None:
+            rot_values = rotation
+            if rotation_mode == "DEGREES":
+                rot_values = [math.radians(a) for a in rotation]
+            target_rot = mathutils.Euler(rot_values, "XYZ").to_quaternion()
+        if scale is not None:
+            target_scale = _scale_to_vector(scale, current_scale)
+
+        obj.matrix_world = mathutils.Matrix.LocRotScale(target_loc, target_rot, target_scale)
+
+    return get_transform({"name": obj.name, "space": space})
+
+
+def apply_transform(params):
+    name = params.get("name") or params.get("object_name")
+    apply_location = params.get("apply_location", True)
+    apply_rotation = params.get("apply_rotation", True)
+    apply_scale = params.get("apply_scale", True)
+    if not name:
+        raise ValueError("apply_transform requires 'name'")
+    obj = bpy.data.objects.get(name)
+    if not obj:
+        raise ValueError(f"Object '{name}' not found")
+
+    bpy.ops.object.select_all(action='DESELECT')
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.transform_apply(
+        location=apply_location,
+        rotation=apply_rotation,
+        scale=apply_scale,
+    )
+    return {"name": obj.name, "applied": {"location": apply_location, "rotation": apply_rotation, "scale": apply_scale}}
+
+
+def create_camera(params):
+    import math
+
+    name = params.get("name")
+    location = params.get("location", [0, 0, 0])
+    rotation = params.get("rotation", [0, 0, 0])
+    projection = (params.get("projection") or "PERSP").upper()
+    focal_length = params.get("focal_length")
+    ortho_scale = params.get("ortho_scale")
+
+    if projection not in ("PERSP", "ORTHO"):
+        raise ValueError("projection must be PERSP or ORTHO")
+
+    rot_values = [math.radians(a) for a in rotation]
+    bpy.ops.object.camera_add(location=location, rotation=rot_values)
+    obj = bpy.context.active_object
+    if name:
+        obj.name = name
+    if obj and obj.data:
+        obj.data.type = projection
+        if focal_length is not None:
+            obj.data.lens = focal_length
+        if projection == "ORTHO" and ortho_scale is not None:
+            obj.data.ortho_scale = ortho_scale
+    return {
+        "name": obj.name,
+        "location": [float(v) for v in obj.location],
+        "rotation": rotation,
+        "projection": projection,
+    }
+
+
+def set_active_camera(params):
+    name = params.get("name")
+    if not name:
+        raise ValueError("set_active_camera requires 'name'")
+    obj = bpy.data.objects.get(name)
+    if not obj or obj.type != 'CAMERA':
+        raise ValueError(f"Camera '{name}' not found")
+    bpy.context.scene.camera = obj
+    return {"name": obj.name, "active": True}
+
+
 def create_primitive(params):
     """
     Create a primitive object (cube, sphere, cylinder, cone, torus, plane, monkey).
@@ -773,6 +968,8 @@ def handle_request(request):
     try:
         if method == "bridge_ping":
             return {"ok": True, "result": {"pong": True, "time": time.time()}}
+        if method == "get_scene_info":
+            return {"ok": True, "result": scene_info()}
         if method == "get_object_transform":
             return {"ok": True, "result": get_object_transform(params)}
         if method == "set_object_location":
@@ -781,6 +978,18 @@ def handle_request(request):
             return {"ok": True, "result": set_object_rotation(params)}
         if method == "set_object_scale":
             return {"ok": True, "result": set_object_scale(params)}
+        if method == "select_object":
+            return {"ok": True, "result": select_object(params)}
+        if method == "get_transform":
+            return {"ok": True, "result": get_transform(params)}
+        if method == "set_transform":
+            return {"ok": True, "result": set_transform(params)}
+        if method == "apply_transform":
+            return {"ok": True, "result": apply_transform(params)}
+        if method == "create_camera":
+            return {"ok": True, "result": create_camera(params)}
+        if method == "set_active_camera":
+            return {"ok": True, "result": set_active_camera(params)}
         if method == "create_primitive":
             return {"ok": True, "result": create_primitive(params)}
         if method == "duplicate_object":
