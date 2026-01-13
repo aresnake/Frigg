@@ -961,6 +961,350 @@ def get_spatial_relationships(params):
     }
 
 
+# =============================================================================
+# SPACE MARINE MODELING TOOLS (v0.5)
+# =============================================================================
+
+def add_modifier(params):
+    """Add a modifier to an object (Mirror, Subdivision, Boolean, Array, Solidify)"""
+    import math
+
+    object_name = params.get("object_name") or params.get("name")
+    modifier_type = params.get("modifier_type") or params.get("type")
+    custom_name = params.get("name") or params.get("modifier_name")
+
+    if not object_name:
+        raise ValueError("add_modifier requires 'object_name' parameter")
+    if not modifier_type:
+        raise ValueError("add_modifier requires 'modifier_type' parameter")
+
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        raise ValueError(f"Object '{object_name}' not found")
+
+    # Create modifier
+    mod_name = custom_name or f"{modifier_type.capitalize()}Modifier"
+    modifier = obj.modifiers.new(name=mod_name, type=modifier_type)
+
+    # Configure based on type
+    if modifier_type == "MIRROR":
+        modifier.use_axis[0] = params.get("axis_x", True)
+        modifier.use_axis[1] = params.get("axis_y", False)
+        modifier.use_axis[2] = params.get("axis_z", False)
+        bisect = params.get("use_bisect_axis", [False, False, False])
+        if len(bisect) >= 3:
+            modifier.use_bisect_axis[0] = bisect[0]
+            modifier.use_bisect_axis[1] = bisect[1]
+            modifier.use_bisect_axis[2] = bisect[2]
+
+    elif modifier_type == "SUBSURF":
+        modifier.levels = params.get("levels", 2)
+        modifier.render_levels = params.get("render_levels", 2)
+
+    elif modifier_type == "BOOLEAN":
+        operation = params.get("operation", "DIFFERENCE")
+        modifier.operation = operation
+        target_name = params.get("target_object")
+        if target_name:
+            target_obj = bpy.data.objects.get(target_name)
+            if target_obj:
+                modifier.object = target_obj
+
+    elif modifier_type == "ARRAY":
+        modifier.count = params.get("count", 2)
+        modifier.relative_offset_displace[0] = params.get("offset_x", 2.0)
+        modifier.relative_offset_displace[1] = params.get("offset_y", 0.0)
+        modifier.relative_offset_displace[2] = params.get("offset_z", 0.0)
+
+    elif modifier_type == "SOLIDIFY":
+        modifier.thickness = params.get("thickness", 0.1)
+        modifier.offset = params.get("offset", 0.0)
+
+    return {
+        "object": object_name,
+        "modifier_name": modifier.name,
+        "modifier_type": modifier_type,
+        "status": "added"
+    }
+
+
+def apply_modifier(params):
+    """Apply (bake) a modifier to make it permanent"""
+    object_name = params.get("object_name") or params.get("name")
+    modifier_name = params.get("modifier_name")
+
+    if not object_name:
+        raise ValueError("apply_modifier requires 'object_name' parameter")
+    if not modifier_name:
+        raise ValueError("apply_modifier requires 'modifier_name' parameter")
+
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        raise ValueError(f"Object '{object_name}' not found")
+
+    modifier = obj.modifiers.get(modifier_name)
+    if not modifier:
+        raise ValueError(f"Modifier '{modifier_name}' not found on '{object_name}'")
+
+    # Apply modifier
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier=modifier_name)
+
+    return {
+        "object": object_name,
+        "modifier": modifier_name,
+        "status": "applied"
+    }
+
+
+def list_modifiers(params):
+    """List all modifiers on an object"""
+    object_name = params.get("object_name") or params.get("name")
+
+    if not object_name:
+        raise ValueError("list_modifiers requires 'object_name' parameter")
+
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        raise ValueError(f"Object '{object_name}' not found")
+
+    modifiers = []
+    for mod in obj.modifiers:
+        mod_info = {
+            "name": mod.name,
+            "type": mod.type,
+            "show_viewport": mod.show_viewport,
+            "show_render": mod.show_render
+        }
+
+        # Add type-specific info
+        if mod.type == "MIRROR":
+            mod_info["axes"] = {
+                "x": mod.use_axis[0],
+                "y": mod.use_axis[1],
+                "z": mod.use_axis[2]
+            }
+        elif mod.type == "SUBSURF":
+            mod_info["levels"] = mod.levels
+            mod_info["render_levels"] = mod.render_levels
+        elif mod.type == "BOOLEAN":
+            mod_info["operation"] = mod.operation
+            mod_info["target"] = mod.object.name if mod.object else None
+
+        modifiers.append(mod_info)
+
+    return {
+        "object": object_name,
+        "modifier_count": len(modifiers),
+        "modifiers": modifiers
+    }
+
+
+def boolean_operation(params):
+    """Perform boolean operation between two objects"""
+    base_name = params.get("base_object") or params.get("object_name")
+    target_name = params.get("target_object") or params.get("tool_object")
+    operation = params.get("operation", "DIFFERENCE")
+    apply_immediately = params.get("apply", False)
+    hide_target = params.get("hide_target", True)
+
+    if not base_name:
+        raise ValueError("boolean_operation requires 'base_object' parameter")
+    if not target_name:
+        raise ValueError("boolean_operation requires 'target_object' parameter")
+
+    base_obj = bpy.data.objects.get(base_name)
+    target_obj = bpy.data.objects.get(target_name)
+
+    if not base_obj:
+        raise ValueError(f"Base object '{base_name}' not found")
+    if not target_obj:
+        raise ValueError(f"Target object '{target_name}' not found")
+
+    # Add boolean modifier
+    modifier = base_obj.modifiers.new(name=f"Boolean_{target_name}", type="BOOLEAN")
+    modifier.operation = operation
+    modifier.object = target_obj
+
+    result = {
+        "base_object": base_name,
+        "target_object": target_name,
+        "operation": operation,
+        "modifier_name": modifier.name,
+        "applied": False
+    }
+
+    # Apply if requested
+    if apply_immediately:
+        bpy.context.view_layer.objects.active = base_obj
+        bpy.ops.object.modifier_apply(modifier=modifier.name)
+        result["applied"] = True
+
+    # Hide target object
+    if hide_target:
+        target_obj.hide_set(True)
+        result["target_hidden"] = True
+
+    return result
+
+
+def create_material(params):
+    """Create a new PBR material with Principled BSDF"""
+    mat_name = params.get("name") or params.get("material_name")
+    if not mat_name:
+        raise ValueError("create_material requires 'name' parameter")
+
+    # Check if material exists
+    if mat_name in bpy.data.materials:
+        mat = bpy.data.materials[mat_name]
+    else:
+        mat = bpy.data.materials.new(name=mat_name)
+
+    # Enable nodes
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+
+    # Clear existing nodes
+    nodes.clear()
+
+    # Create Principled BSDF
+    bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
+    bsdf.location = (0, 0)
+
+    # Create Material Output
+    output = nodes.new(type='ShaderNodeOutputMaterial')
+    output.location = (300, 0)
+
+    # Link nodes
+    links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
+
+    # Set properties
+    base_color = params.get("base_color", [0.8, 0.8, 0.8, 1.0])
+    if len(base_color) >= 4:
+        bsdf.inputs['Base Color'].default_value = base_color
+
+    metallic = params.get("metallic", 0.0)
+    bsdf.inputs['Metallic'].default_value = metallic
+
+    roughness = params.get("roughness", 0.5)
+    bsdf.inputs['Roughness'].default_value = roughness
+
+    return {
+        "material_name": mat_name,
+        "base_color": base_color,
+        "metallic": metallic,
+        "roughness": roughness,
+        "status": "created"
+    }
+
+
+def assign_material(params):
+    """Assign a material to an object"""
+    object_name = params.get("object_name") or params.get("name")
+    material_name = params.get("material_name") or params.get("material")
+    slot_index = params.get("slot_index", 0)
+
+    if not object_name:
+        raise ValueError("assign_material requires 'object_name' parameter")
+    if not material_name:
+        raise ValueError("assign_material requires 'material_name' parameter")
+
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        raise ValueError(f"Object '{object_name}' not found")
+
+    mat = bpy.data.materials.get(material_name)
+    if not mat:
+        raise ValueError(f"Material '{material_name}' not found")
+
+    # Ensure object has material slots
+    if len(obj.data.materials) == 0:
+        obj.data.materials.append(mat)
+    else:
+        if slot_index >= len(obj.data.materials):
+            obj.data.materials.append(mat)
+        else:
+            obj.data.materials[slot_index] = mat
+
+    return {
+        "object": object_name,
+        "material": material_name,
+        "slot": slot_index,
+        "status": "assigned"
+    }
+
+
+def create_collection(params):
+    """Create a new collection for organizing objects"""
+    collection_name = params.get("name") or params.get("collection_name")
+    parent_name = params.get("parent_collection")
+
+    if not collection_name:
+        raise ValueError("create_collection requires 'name' parameter")
+
+    # Check if collection exists
+    if collection_name in bpy.data.collections:
+        collection = bpy.data.collections[collection_name]
+        status = "exists"
+    else:
+        collection = bpy.data.collections.new(collection_name)
+        status = "created"
+
+        # Link to parent or scene
+        if parent_name:
+            parent = bpy.data.collections.get(parent_name)
+            if parent:
+                parent.children.link(collection)
+            else:
+                raise ValueError(f"Parent collection '{parent_name}' not found")
+        else:
+            bpy.context.scene.collection.children.link(collection)
+
+    return {
+        "collection_name": collection_name,
+        "parent": parent_name,
+        "status": status
+    }
+
+
+def move_to_collection(params):
+    """Move an object to a collection"""
+    object_name = params.get("object_name") or params.get("name")
+    collection_name = params.get("collection_name") or params.get("collection")
+    unlink_current = params.get("unlink_from_current", True)
+
+    if not object_name:
+        raise ValueError("move_to_collection requires 'object_name' parameter")
+    if not collection_name:
+        raise ValueError("move_to_collection requires 'collection_name' parameter")
+
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        raise ValueError(f"Object '{object_name}' not found")
+
+    collection = bpy.data.collections.get(collection_name)
+    if not collection:
+        raise ValueError(f"Collection '{collection_name}' not found")
+
+    # Unlink from current collections
+    old_collections = []
+    if unlink_current:
+        for col in obj.users_collection:
+            col.objects.unlink(obj)
+            old_collections.append(col.name)
+
+    # Link to new collection
+    collection.objects.link(obj)
+
+    return {
+        "object": object_name,
+        "new_collection": collection_name,
+        "unlinked_from": old_collections if unlink_current else [],
+        "status": "moved"
+    }
+
+
 def handle_request(request):
     method = request.get("method") if isinstance(request, dict) else None
     params = request.get("params", {}) if isinstance(request, dict) else {}
@@ -1029,6 +1373,24 @@ def handle_request(request):
         # META-TOOLS - Development utilities
         if method == "execute_python":
             return {"ok": True, "result": execute_python(params)}
+
+        # SPACE MARINE MODELING TOOLS (v0.5)
+        if method == "add_modifier":
+            return {"ok": True, "result": add_modifier(params)}
+        if method == "apply_modifier":
+            return {"ok": True, "result": apply_modifier(params)}
+        if method == "list_modifiers":
+            return {"ok": True, "result": list_modifiers(params)}
+        if method == "boolean_operation":
+            return {"ok": True, "result": boolean_operation(params)}
+        if method == "create_material":
+            return {"ok": True, "result": create_material(params)}
+        if method == "assign_material":
+            return {"ok": True, "result": assign_material(params)}
+        if method == "create_collection":
+            return {"ok": True, "result": create_collection(params)}
+        if method == "move_to_collection":
+            return {"ok": True, "result": move_to_collection(params)}
 
         return {"ok": False, "error": f"Unknown method: {method}"}
     except Exception as exc:
