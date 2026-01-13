@@ -1305,6 +1305,565 @@ def move_to_collection(params):
     }
 
 
+# =============================================================================
+# MESH EDITING TOOLS
+# =============================================================================
+
+def join_objects(params):
+    """Join multiple mesh objects into one."""
+    import bmesh
+
+    try:
+        object_names = params.get("object_names") or []
+        result_name = params.get("result_name")
+
+        if not isinstance(object_names, list) or len(object_names) < 2:
+            raise ValueError("Need at least 2 object names to join.")
+
+        objects = []
+        for name in object_names:
+            if not name:
+                raise ValueError("Object name cannot be empty.")
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                raise ValueError(f"Object '{name}' not found.")
+            if obj.type != "MESH":
+                raise ValueError(f"Object '{name}' is not a mesh.")
+            objects.append(obj)
+
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="DESELECT")
+        for obj in objects:
+            obj.select_set(True)
+        bpy.context.view_layer.objects.active = objects[0]
+        bpy.ops.object.join()
+
+        result_obj = bpy.context.view_layer.objects.active
+        if not result_obj or result_obj.type != "MESH":
+            raise ValueError("Join operation failed to produce a mesh result.")
+
+        if result_name:
+            result_obj.name = result_name
+
+        mesh = result_obj.data
+        return {
+            "result_object": result_obj.name,
+            "vertex_count": len(mesh.vertices),
+            "face_count": len(mesh.polygons),
+            "merged_objects": object_names,
+        }
+    finally:
+        try:
+            if bpy.context.object and bpy.context.object.mode != "OBJECT":
+                bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def extrude_faces(params):
+    """Extrude faces on a mesh object."""
+    import bmesh
+
+    try:
+        object_name = params.get("object_name")
+        face_indices = params.get("face_indices")
+        offset = params.get("offset", 0.5)
+        direction = params.get("direction")
+
+        if not object_name:
+            raise ValueError("object_name is required.")
+        obj = bpy.data.objects.get(object_name)
+        if not obj:
+            raise ValueError(f"Object '{object_name}' not found.")
+        if obj.type != "MESH":
+            raise ValueError(f"Object '{object_name}' is not a mesh.")
+
+        if direction is not None:
+            if (
+                not isinstance(direction, (list, tuple))
+                or len(direction) != 3
+                or not all(isinstance(v, (int, float)) for v in direction)
+            ):
+                raise ValueError("direction must be [x, y, z] if provided.")
+
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="DESELECT")
+
+        bm = bmesh.from_edit_mesh(obj.data)
+        bm.faces.ensure_lookup_table()
+
+        if face_indices is None or face_indices == "all":
+            for face in bm.faces:
+                face.select = True
+            selected_faces = [face.index for face in bm.faces]
+        elif isinstance(face_indices, list):
+            try:
+                indices = {int(i) for i in face_indices}
+            except (TypeError, ValueError):
+                raise ValueError("face_indices must be a list of integers.")
+            selected_faces = []
+            for face in bm.faces:
+                face.select = face.index in indices
+                if face.select:
+                    selected_faces.append(face.index)
+        else:
+            raise ValueError("face_indices must be a list of integers or 'all'.")
+
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+
+        if not selected_faces:
+            raise ValueError("No faces selected for extrusion.")
+
+        # Extrude the selected faces
+        bpy.ops.mesh.extrude_region()
+
+        # Then move them
+        if direction is None:
+            # Shrink/fatten along normals
+            bpy.ops.transform.shrink_fatten(value=float(offset))
+        else:
+            # Translate in specific direction
+            translation = tuple(float(direction[i]) * float(offset) for i in range(3))
+            bpy.ops.transform.translate(value=translation)
+
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+
+        return {
+            "object": obj.name,
+            "extruded_faces": selected_faces,
+            "new_vertex_count": len(obj.data.vertices),
+        }
+    finally:
+        try:
+            if bpy.context.object and bpy.context.object.mode != "OBJECT":
+                bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def inset_faces(params):
+    """Inset faces on a mesh object."""
+    import bmesh
+
+    try:
+        object_name = params.get("object_name")
+        face_indices = params.get("face_indices")
+        thickness = params.get("thickness", 0.1)
+        depth = params.get("depth", 0.0)
+
+        if not object_name:
+            raise ValueError("object_name is required.")
+        obj = bpy.data.objects.get(object_name)
+        if not obj:
+            raise ValueError(f"Object '{object_name}' not found.")
+        if obj.type != "MESH":
+            raise ValueError(f"Object '{object_name}' is not a mesh.")
+
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="DESELECT")
+
+        bm = bmesh.from_edit_mesh(obj.data)
+        bm.faces.ensure_lookup_table()
+
+        if face_indices is None:
+            for face in bm.faces:
+                face.select = True
+            selected_faces = [face.index for face in bm.faces]
+        elif isinstance(face_indices, list):
+            try:
+                indices = {int(i) for i in face_indices}
+            except (TypeError, ValueError):
+                raise ValueError("face_indices must be a list of integers.")
+            selected_faces = []
+            for face in bm.faces:
+                face.select = face.index in indices
+                if face.select:
+                    selected_faces.append(face.index)
+        else:
+            raise ValueError("face_indices must be a list of integers.")
+
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+
+        if not selected_faces:
+            raise ValueError("No faces selected for inset.")
+
+        bpy.ops.mesh.inset(thickness=float(thickness), depth=float(depth))
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+
+        return {
+            "object": obj.name,
+            "inset_faces": selected_faces,
+            "new_face_count": len(obj.data.polygons),
+        }
+    finally:
+        try:
+            if bpy.context.object and bpy.context.object.mode != "OBJECT":
+                bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def merge_vertices(params):
+    """Merge vertices by distance (remove doubles)."""
+    import bmesh
+
+    try:
+        object_name = params.get("object_name")
+        distance = params.get("distance", 0.0001)
+
+        if not object_name:
+            raise ValueError("object_name is required.")
+        obj = bpy.data.objects.get(object_name)
+        if not obj:
+            raise ValueError(f"Object '{object_name}' not found.")
+        if obj.type != "MESH":
+            raise ValueError(f"Object '{object_name}' is not a mesh.")
+        if distance is None or float(distance) < 0:
+            raise ValueError("distance must be a non-negative number.")
+
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+
+        bm = bmesh.from_edit_mesh(obj.data)
+        vertices_before = len(bm.verts)
+
+        bpy.ops.mesh.remove_doubles(threshold=float(distance))
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+
+        bm = bmesh.from_edit_mesh(obj.data)
+        vertices_after = len(bm.verts)
+
+        return {
+            "object": obj.name,
+            "vertices_before": vertices_before,
+            "vertices_after": vertices_after,
+            "removed_count": max(0, vertices_before - vertices_after),
+        }
+    finally:
+        try:
+            if bpy.context.object and bpy.context.object.mode != "OBJECT":
+                bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def bevel_edges(params):
+    """Bevel edges on a mesh object."""
+    import bmesh
+
+    try:
+        object_name = params.get("object_name")
+        edge_indices = params.get("edge_indices")
+        width = params.get("width", 0.1)
+        segments = params.get("segments", 2)
+        profile = params.get("profile", 0.5)
+
+        if not object_name:
+            raise ValueError("object_name is required.")
+        obj = bpy.data.objects.get(object_name)
+        if not obj:
+            raise ValueError(f"Object '{object_name}' not found.")
+        if obj.type != "MESH":
+            raise ValueError(f"Object '{object_name}' is not a mesh.")
+
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="DESELECT")
+
+        bm = bmesh.from_edit_mesh(obj.data)
+        bm.edges.ensure_lookup_table()
+
+        if edge_indices is None or edge_indices == "all":
+            for edge in bm.edges:
+                edge.select = True
+            selected_edges = [edge.index for edge in bm.edges]
+        elif isinstance(edge_indices, list):
+            try:
+                indices = {int(i) for i in edge_indices}
+            except (TypeError, ValueError):
+                raise ValueError("edge_indices must be a list of integers.")
+            selected_edges = []
+            for edge in bm.edges:
+                edge.select = edge.index in indices
+                if edge.select:
+                    selected_edges.append(edge.index)
+
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+
+        bpy.ops.mesh.bevel(offset=float(width), segments=int(segments), profile=float(profile))
+
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+
+        return {
+            "object": obj.name,
+            "beveled_edges": selected_edges,
+            "new_vertex_count": len(obj.data.vertices),
+        }
+    finally:
+        try:
+            if bpy.context.object and bpy.context.object.mode != "OBJECT":
+                bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def subdivide_mesh(params):
+    """Subdivide mesh faces."""
+    import bmesh
+
+    try:
+        object_name = params.get("object_name")
+        cuts = params.get("cuts", 1)
+        smooth = params.get("smooth", 0.0)
+        face_indices = params.get("face_indices")
+
+        if not object_name:
+            raise ValueError("object_name is required.")
+        obj = bpy.data.objects.get(object_name)
+        if not obj:
+            raise ValueError(f"Object '{object_name}' not found.")
+        if obj.type != "MESH":
+            raise ValueError(f"Object '{object_name}' is not a mesh.")
+
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="DESELECT")
+
+        bm = bmesh.from_edit_mesh(obj.data)
+        bm.faces.ensure_lookup_table()
+
+        if face_indices is None:
+            for face in bm.faces:
+                face.select = True
+            selected_faces = [face.index for face in bm.faces]
+        elif isinstance(face_indices, list):
+            try:
+                indices = {int(i) for i in face_indices}
+            except (TypeError, ValueError):
+                raise ValueError("face_indices must be a list of integers.")
+            selected_faces = []
+            for face in bm.faces:
+                face.select = face.index in indices
+                if face.select:
+                    selected_faces.append(face.index)
+
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+
+        bpy.ops.mesh.subdivide(number_cuts=int(cuts), smoothness=float(smooth))
+
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+
+        return {
+            "object": obj.name,
+            "subdivided_faces": selected_faces,
+            "new_vertex_count": len(obj.data.vertices),
+            "new_face_count": len(obj.data.polygons),
+        }
+    finally:
+        try:
+            if bpy.context.object and bpy.context.object.mode != "OBJECT":
+                bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def recalculate_normals(params):
+    """Recalculate face normals (fix inside-out faces)."""
+    import bmesh
+
+    try:
+        object_name = params.get("object_name")
+        inside = params.get("inside", False)
+
+        if not object_name:
+            raise ValueError("object_name is required.")
+        obj = bpy.data.objects.get(object_name)
+        if not obj:
+            raise ValueError(f"Object '{object_name}' not found.")
+        if obj.type != "MESH":
+            raise ValueError(f"Object '{object_name}' is not a mesh.")
+
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+
+        bpy.ops.mesh.normals_make_consistent(inside=bool(inside))
+
+        return {
+            "object": obj.name,
+            "status": "recalculated",
+            "face_count": len(obj.data.polygons),
+        }
+    finally:
+        try:
+            if bpy.context.object and bpy.context.object.mode != "OBJECT":
+                bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def shade_smooth(params):
+    """Set smooth or flat shading on a mesh object."""
+    try:
+        object_name = params.get("object_name")
+        smooth = params.get("smooth", True)
+        auto_smooth = params.get("auto_smooth", False)
+        angle = params.get("angle", 30.0)
+
+        if not object_name:
+            raise ValueError("object_name is required.")
+        obj = bpy.data.objects.get(object_name)
+        if not obj:
+            raise ValueError(f"Object '{object_name}' not found.")
+        if obj.type != "MESH":
+            raise ValueError(f"Object '{object_name}' is not a mesh.")
+
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+
+        if smooth:
+            bpy.ops.object.shade_smooth()
+        else:
+            bpy.ops.object.shade_flat()
+
+        if auto_smooth:
+            obj.data.use_auto_smooth = True
+            obj.data.auto_smooth_angle = float(angle) * 3.14159 / 180.0
+
+        return {
+            "object": obj.name,
+            "shading": "smooth" if smooth else "flat",
+            "auto_smooth": auto_smooth,
+        }
+    finally:
+        try:
+            if bpy.context.object and bpy.context.object.mode != "OBJECT":
+                bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def apply_all_modifiers(params):
+    """Apply all modifiers on an object."""
+    try:
+        object_name = params.get("object_name")
+        modifier_types = params.get("types")
+
+        if not object_name:
+            raise ValueError("object_name is required.")
+        obj = bpy.data.objects.get(object_name)
+        if not obj:
+            raise ValueError(f"Object '{object_name}' not found.")
+
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+
+        applied = []
+        for modifier in list(obj.modifiers):
+            if modifier_types is None or modifier.type in modifier_types:
+                try:
+                    bpy.ops.object.modifier_apply(modifier=modifier.name)
+                    applied.append(modifier.name)
+                except Exception as e:
+                    pass
+
+        return {
+            "object": obj.name,
+            "applied_modifiers": applied,
+            "count": len(applied),
+        }
+    finally:
+        try:
+            if bpy.context.object and bpy.context.object.mode != "OBJECT":
+                bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def select_faces_by_angle(params):
+    """Select faces by their normal direction."""
+    import bmesh
+    import math
+
+    try:
+        object_name = params.get("object_name")
+        direction = params.get("direction", [0, 0, 1])
+        threshold = params.get("threshold", 10.0)
+        extend = params.get("extend", False)
+
+        if not object_name:
+            raise ValueError("object_name is required.")
+        obj = bpy.data.objects.get(object_name)
+        if not obj:
+            raise ValueError(f"Object '{object_name}' not found.")
+        if obj.type != "MESH":
+            raise ValueError(f"Object '{object_name}' is not a mesh.")
+
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode="EDIT")
+        if not extend:
+            bpy.ops.mesh.select_all(action="DESELECT")
+
+        bm = bmesh.from_edit_mesh(obj.data)
+        bm.faces.ensure_lookup_table()
+
+        import mathutils
+        target = mathutils.Vector(direction).normalized()
+        threshold_rad = math.radians(float(threshold))
+
+        selected = []
+        for face in bm.faces:
+            angle = face.normal.angle(target)
+            if angle < threshold_rad:
+                face.select = True
+                selected.append(face.index)
+
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+
+        return {
+            "object": obj.name,
+            "selected_faces": selected,
+            "count": len(selected),
+        }
+    finally:
+        try:
+            if bpy.context.object and bpy.context.object.mode != "OBJECT":
+                bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
 def handle_request(request):
     method = request.get("method") if isinstance(request, dict) else None
     params = request.get("params", {}) if isinstance(request, dict) else {}
@@ -1391,6 +1950,28 @@ def handle_request(request):
             return {"ok": True, "result": create_collection(params)}
         if method == "move_to_collection":
             return {"ok": True, "result": move_to_collection(params)}
+
+        # MESH EDITING TOOLS
+        if method == "join_objects":
+            return {"ok": True, "result": join_objects(params)}
+        if method == "extrude_faces":
+            return {"ok": True, "result": extrude_faces(params)}
+        if method == "inset_faces":
+            return {"ok": True, "result": inset_faces(params)}
+        if method == "merge_vertices":
+            return {"ok": True, "result": merge_vertices(params)}
+        if method == "bevel_edges":
+            return {"ok": True, "result": bevel_edges(params)}
+        if method == "subdivide_mesh":
+            return {"ok": True, "result": subdivide_mesh(params)}
+        if method == "recalculate_normals":
+            return {"ok": True, "result": recalculate_normals(params)}
+        if method == "shade_smooth":
+            return {"ok": True, "result": shade_smooth(params)}
+        if method == "apply_all_modifiers":
+            return {"ok": True, "result": apply_all_modifiers(params)}
+        if method == "select_faces_by_angle":
+            return {"ok": True, "result": select_faces_by_angle(params)}
 
         return {"ok": False, "error": f"Unknown method: {method}"}
     except Exception as exc:

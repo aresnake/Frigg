@@ -23,27 +23,27 @@ def _empty_schema() -> Dict[str, Any]:
 
 CORE_TOOL_DEFS: List[Dict[str, Any]] = [
     {
-        "name": "frigg.ping",
+        "name": "frigg_ping",
         "description": "Simple ping without Blender.",
         "inputSchema": _empty_schema(),
     },
     {
-        "name": "frigg.blender.bridge_ping",
+        "name": "frigg_blender_bridge_ping",
         "description": "Ping the Blender bridge server.",
         "inputSchema": _empty_schema(),
     },
     {
-        "name": "frigg.blender.get_scene_info",
+        "name": "frigg_blender_get_scene_info",
         "description": "Get basic scene info from Blender.",
         "inputSchema": _empty_schema(),
     },
     {
-        "name": "frigg.blender.list_objects",
+        "name": "frigg_blender_list_objects",
         "description": "List all objects in the Blender file.",
         "inputSchema": _empty_schema(),
     },
     {
-        "name": "frigg.blender.create_primitive",
+        "name": "frigg_blender_create_primitive",
         "description": "Create a primitive object (cube, sphere, cylinder, cone, torus, plane, monkey).",
         "inputSchema": {
             "type": "object",
@@ -87,7 +87,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.delete_object",
+        "name": "frigg_blender_delete_object",
         "description": "Delete an object from the scene.",
         "inputSchema": {
             "type": "object",
@@ -97,7 +97,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.select_object",
+        "name": "frigg_blender_select_object",
         "description": "Select an object with a selection action.",
         "inputSchema": {
             "type": "object",
@@ -115,7 +115,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.get_transform",
+        "name": "frigg_blender_get_transform",
         "description": "Get object transform (location, rotation, scale).",
         "inputSchema": {
             "type": "object",
@@ -133,7 +133,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.set_transform",
+        "name": "frigg_blender_set_transform",
         "description": "Set object transform (location, rotation, scale).",
         "inputSchema": {
             "type": "object",
@@ -183,7 +183,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.apply_transform",
+        "name": "frigg_blender_apply_transform",
         "description": "Apply transforms to an object (location, rotation, scale).",
         "inputSchema": {
             "type": "object",
@@ -198,7 +198,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.create_camera",
+        "name": "frigg_blender_create_camera",
         "description": "Create a camera object.",
         "inputSchema": {
             "type": "object",
@@ -232,7 +232,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.set_active_camera",
+        "name": "frigg_blender_set_active_camera",
         "description": "Set the active scene camera by name.",
         "inputSchema": {
             "type": "object",
@@ -243,7 +243,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
     },
     # SPACE MARINE MODELING TOOLS (v0.5)
     {
-        "name": "frigg.blender.add_modifier",
+        "name": "frigg_blender_add_modifier",
         "description": "Add a modifier to an object (Mirror, Subdivision, Boolean, Array, Solidify). Essential for armor symmetry and details.",
         "inputSchema": {
             "type": "object",
@@ -290,7 +290,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.apply_modifier",
+        "name": "frigg_blender_apply_modifier",
         "description": "Apply (bake) a modifier to make it permanent.",
         "inputSchema": {
             "type": "object",
@@ -303,7 +303,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.list_modifiers",
+        "name": "frigg_blender_list_modifiers",
         "description": "List all modifiers on an object with their properties.",
         "inputSchema": {
             "type": "object",
@@ -313,7 +313,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.boolean_operation",
+        "name": "frigg_blender_boolean_operation",
         "description": "Perform boolean operation between two objects (Union/Difference/Intersect). Essential for armor cuts and details.",
         "inputSchema": {
             "type": "object",
@@ -334,7 +334,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.create_material",
+        "name": "frigg_blender_create_material",
         "description": "Create a new PBR material with Principled BSDF shader.",
         "inputSchema": {
             "type": "object",
@@ -365,7 +365,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.assign_material",
+        "name": "frigg_blender_assign_material",
         "description": "Assign a material to an object.",
         "inputSchema": {
             "type": "object",
@@ -379,7 +379,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.create_collection",
+        "name": "frigg_blender_create_collection",
         "description": "Create a new collection for organizing objects.",
         "inputSchema": {
             "type": "object",
@@ -392,7 +392,7 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
         },
     },
     {
-        "name": "frigg.blender.move_to_collection",
+        "name": "frigg_blender_move_to_collection",
         "description": "Move an object to a specific collection.",
         "inputSchema": {
             "type": "object",
@@ -406,6 +406,224 @@ CORE_TOOL_DEFS: List[Dict[str, Any]] = [
                 },
             },
             "required": ["object_name", "collection_name"],
+            "additionalProperties": False,
+        },
+    },
+    # MESH EDITING TOOLS
+    {
+        "name": "frigg_blender_join_objects",
+        "description": "Merge multiple mesh objects into one.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "object_names": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 2,
+                    "description": "List of mesh object names to join (at least 2).",
+                },
+                "result_name": {"type": "string", "description": "Optional name for the resulting object."},
+            },
+            "required": ["object_names"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "frigg_blender_extrude_faces",
+        "description": "Extrude selected faces on a mesh object.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string", "description": "Mesh object name to edit."},
+                "face_indices": {
+                    "description": "List of face indices to extrude or 'all'.",
+                    "oneOf": [
+                        {"type": "array", "items": {"type": "integer"}},
+                        {"type": "string", "enum": ["all"]},
+                    ],
+                },
+                "offset": {"type": "number", "description": "Extrusion distance (default: 0.5).", "default": 0.5},
+                "direction": {
+                    "type": "array",
+                    "items": {"type": "number"},
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "description": "Optional direction [x, y, z]. None uses face normals.",
+                },
+            },
+            "required": ["object_name"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "frigg_blender_inset_faces",
+        "description": "Create insets on selected faces.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string", "description": "Mesh object name to edit."},
+                "face_indices": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": "Optional list of face indices (None = all faces).",
+                },
+                "thickness": {"type": "number", "description": "Inset thickness (default: 0.1).", "default": 0.1},
+                "depth": {"type": "number", "description": "Inset depth (default: 0.0).", "default": 0.0},
+            },
+            "required": ["object_name"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "frigg_blender_merge_vertices",
+        "description": "Merge vertices by distance (remove doubles).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string", "description": "Mesh object name to edit."},
+                "distance": {"type": "number", "minimum": 0, "description": "Merge distance threshold (default: 0.0001).", "default": 0.0001},
+            },
+            "required": ["object_name"],
+            "additionalProperties": False,
+        },
+    },
+    # HIGH PRIORITY TOOLS
+    {
+        "name": "frigg_blender_bevel_edges",
+        "description": "Bevel edges on a mesh object to create rounded or chamfered edges. Essential for hard-surface modeling.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "object_name": {
+                    "type": "string",
+                    "description": "Name of the mesh object.",
+                },
+                "edge_indices": {
+                    "oneOf": [
+                        {"type": "array", "items": {"type": "integer"}},
+                        {"type": "string", "enum": ["all"]},
+                        {"type": "null"},
+                    ],
+                    "description": "List of edge indices to bevel, 'all' for all edges, or null for all edges (default: null).",
+                },
+                "width": {
+                    "type": "number",
+                    "description": "Width/offset of the bevel (default: 0.1).",
+                },
+                "segments": {
+                    "type": "integer",
+                    "description": "Number of segments in the bevel (default: 2).",
+                },
+                "profile": {
+                    "type": "number",
+                    "description": "Profile shape from 0 (sharp) to 1 (round) (default: 0.5).",
+                },
+            },
+            "required": ["object_name"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "frigg_blender_subdivide_mesh",
+        "description": "Subdivide mesh faces to add geometry density. Essential for organic modeling and smooth surfaces.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "object_name": {
+                    "type": "string",
+                    "description": "Name of the mesh object.",
+                },
+                "cuts": {
+                    "type": "integer",
+                    "description": "Number of subdivision cuts (default: 1, range: 1-10).",
+                },
+                "smooth": {
+                    "type": "number",
+                    "description": "Smoothness factor from 0 (sharp) to 1 (smooth) (default: 0.0).",
+                },
+                "face_indices": {
+                    "oneOf": [
+                        {"type": "array", "items": {"type": "integer"}},
+                        {"type": "null"},
+                    ],
+                    "description": "List of face indices to subdivide, or null for all faces (default: null).",
+                },
+            },
+            "required": ["object_name"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "frigg_blender_recalculate_normals",
+        "description": "Recalculate face normals to fix inside-out faces. Essential for clean mesh topology and correct rendering.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "object_name": {
+                    "type": "string",
+                    "description": "Name of the mesh object.",
+                },
+                "inside": {
+                    "type": "boolean",
+                    "description": "If true, normals point inside; if false, normals point outside (default: false).",
+                },
+            },
+            "required": ["object_name"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "frigg_blender_shade_smooth",
+        "description": "Set smooth or flat shading on a mesh object.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string", "description": "Name of the mesh object."},
+                "smooth": {"type": "boolean", "description": "True for smooth shading, False for flat (default: true)."},
+                "auto_smooth": {"type": "boolean", "description": "Enable auto smooth (default: false)."},
+                "angle": {"type": "number", "description": "Auto smooth angle in degrees (default: 30.0)."},
+            },
+            "required": ["object_name"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "frigg_blender_apply_all_modifiers",
+        "description": "Apply all modifiers on an object at once.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string", "description": "Name of the object."},
+                "types": {
+                    "oneOf": [
+                        {"type": "array", "items": {"type": "string"}},
+                        {"type": "null"},
+                    ],
+                    "description": "List of modifier types to apply (e.g. ['MIRROR', 'SUBSURF']), or null for all (default: null).",
+                },
+            },
+            "required": ["object_name"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "frigg_blender_select_faces_by_angle",
+        "description": "Select faces by their normal direction (e.g., select top faces, bottom faces).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string", "description": "Name of the mesh object."},
+                "direction": {
+                    "type": "array",
+                    "items": {"type": "number"},
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "description": "Direction vector [x, y, z] (default: [0, 0, 1] for up).",
+                },
+                "threshold": {"type": "number", "description": "Angle threshold in degrees (default: 10.0)."},
+                "extend": {"type": "boolean", "description": "Extend current selection (default: false)."},
+            },
+            "required": ["object_name"],
             "additionalProperties": False,
         },
     },
@@ -442,19 +660,19 @@ def handle_core_call(
 ) -> Dict[str, Any]:
     args = arguments or {}
 
-    if name == "frigg.ping":
+    if name == "frigg_ping":
         return ok_result({"message": "pong"})
 
-    if name == "frigg.blender.bridge_ping":
+    if name == "frigg_blender_bridge_ping":
         return _bridge_call(call_bridge, "bridge_ping", {})
 
-    if name == "frigg.blender.get_scene_info":
+    if name == "frigg_blender_get_scene_info":
         return _bridge_call(call_bridge, "scene_info", {})
 
-    if name == "frigg.blender.list_objects":
+    if name == "frigg_blender_list_objects":
         return _bridge_call(call_bridge, "list_objects", {})
 
-    if name == "frigg.blender.create_primitive":
+    if name == "frigg_blender_create_primitive":
         primitive_type = args.get("type")
         payload = {
             "primitive_type": primitive_type.lower() if isinstance(primitive_type, str) else primitive_type,
@@ -471,18 +689,18 @@ def handle_core_call(
             payload["size"] = args.get("size")
         return _bridge_call(call_bridge, "create_primitive", payload)
 
-    if name == "frigg.blender.delete_object":
+    if name == "frigg_blender_delete_object":
         return _bridge_call(call_bridge, "delete_object", {"object_name": args.get("name")})
 
-    if name == "frigg.blender.select_object":
+    if name == "frigg_blender_select_object":
         payload = {"name": args.get("name"), "action": args.get("action", "SET")}
         return _bridge_call(call_bridge, "select_object", payload)
 
-    if name == "frigg.blender.get_transform":
+    if name == "frigg_blender_get_transform":
         payload = {"name": args.get("name"), "space": args.get("space", "LOCAL")}
         return _bridge_call(call_bridge, "get_transform", payload)
 
-    if name == "frigg.blender.set_transform":
+    if name == "frigg_blender_set_transform":
         payload = {
             "name": args.get("name"),
             "space": args.get("space", "LOCAL"),
@@ -493,7 +711,7 @@ def handle_core_call(
         }
         return _bridge_call(call_bridge, "set_transform", payload)
 
-    if name == "frigg.blender.apply_transform":
+    if name == "frigg_blender_apply_transform":
         payload = {
             "name": args.get("name"),
             "apply_location": args.get("apply_location", True),
@@ -502,7 +720,7 @@ def handle_core_call(
         }
         return _bridge_call(call_bridge, "apply_transform", payload)
 
-    if name == "frigg.blender.create_camera":
+    if name == "frigg_blender_create_camera":
         payload = {"projection": args.get("projection", "PERSP")}
         if args.get("name") is not None:
             payload["name"] = args.get("name")
@@ -516,11 +734,11 @@ def handle_core_call(
             payload["ortho_scale"] = args.get("ortho_scale")
         return _bridge_call(call_bridge, "create_camera", payload)
 
-    if name == "frigg.blender.set_active_camera":
+    if name == "frigg_blender_set_active_camera":
         return _bridge_call(call_bridge, "set_active_camera", {"name": args.get("name")})
 
     # SPACE MARINE MODELING TOOLS
-    if name == "frigg.blender.add_modifier":
+    if name == "frigg_blender_add_modifier":
         payload = {
             "object_name": args.get("object_name"),
             "modifier_type": args.get("modifier_type"),
@@ -562,16 +780,16 @@ def handle_core_call(
             payload["offset"] = args.get("offset")
         return _bridge_call(call_bridge, "add_modifier", payload)
 
-    if name == "frigg.blender.apply_modifier":
+    if name == "frigg_blender_apply_modifier":
         return _bridge_call(call_bridge, "apply_modifier", {
             "object_name": args.get("object_name"),
             "modifier_name": args.get("modifier_name"),
         })
 
-    if name == "frigg.blender.list_modifiers":
+    if name == "frigg_blender_list_modifiers":
         return _bridge_call(call_bridge, "list_modifiers", {"object_name": args.get("object_name")})
 
-    if name == "frigg.blender.boolean_operation":
+    if name == "frigg_blender_boolean_operation":
         payload = {
             "base_object": args.get("base_object"),
             "target_object": args.get("target_object"),
@@ -581,7 +799,7 @@ def handle_core_call(
         }
         return _bridge_call(call_bridge, "boolean_operation", payload)
 
-    if name == "frigg.blender.create_material":
+    if name == "frigg_blender_create_material":
         payload = {"name": args.get("name")}
         if args.get("base_color") is not None:
             payload["base_color"] = args.get("base_color")
@@ -591,24 +809,113 @@ def handle_core_call(
             payload["roughness"] = args.get("roughness")
         return _bridge_call(call_bridge, "create_material", payload)
 
-    if name == "frigg.blender.assign_material":
+    if name == "frigg_blender_assign_material":
         return _bridge_call(call_bridge, "assign_material", {
             "object_name": args.get("object_name"),
             "material_name": args.get("material_name"),
             "slot_index": args.get("slot_index", 0),
         })
 
-    if name == "frigg.blender.create_collection":
+    if name == "frigg_blender_create_collection":
         payload = {"name": args.get("name")}
         if args.get("parent_collection") is not None:
             payload["parent_collection"] = args.get("parent_collection")
         return _bridge_call(call_bridge, "create_collection", payload)
 
-    if name == "frigg.blender.move_to_collection":
+    if name == "frigg_blender_move_to_collection":
         return _bridge_call(call_bridge, "move_to_collection", {
             "object_name": args.get("object_name"),
             "collection_name": args.get("collection_name"),
             "unlink_from_current": args.get("unlink_from_current", True),
         })
+
+    # MESH EDITING TOOLS
+    if name == "frigg_blender_join_objects":
+        payload = {"object_names": args.get("object_names")}
+        if args.get("result_name") is not None:
+            payload["result_name"] = args.get("result_name")
+        return _bridge_call(call_bridge, "join_objects", payload)
+
+    if name == "frigg_blender_extrude_faces":
+        payload = {
+            "object_name": args.get("object_name"),
+            "offset": args.get("offset", 0.5),
+        }
+        if args.get("face_indices") is not None:
+            payload["face_indices"] = args.get("face_indices")
+        if args.get("direction") is not None:
+            payload["direction"] = args.get("direction")
+        return _bridge_call(call_bridge, "extrude_faces", payload)
+
+    if name == "frigg_blender_inset_faces":
+        payload = {
+            "object_name": args.get("object_name"),
+            "thickness": args.get("thickness", 0.1),
+            "depth": args.get("depth", 0.0),
+        }
+        if args.get("face_indices") is not None:
+            payload["face_indices"] = args.get("face_indices")
+        return _bridge_call(call_bridge, "inset_faces", payload)
+
+    if name == "frigg_blender_merge_vertices":
+        return _bridge_call(call_bridge, "merge_vertices", {
+            "object_name": args.get("object_name"),
+            "distance": args.get("distance", 0.0001),
+        })
+
+    # HIGH PRIORITY TOOLS
+    if name == "frigg_blender_bevel_edges":
+        payload = {"object_name": args.get("object_name")}
+        if args.get("edge_indices") is not None:
+            payload["edge_indices"] = args.get("edge_indices")
+        if args.get("width") is not None:
+            payload["width"] = args.get("width")
+        if args.get("segments") is not None:
+            payload["segments"] = args.get("segments")
+        if args.get("profile") is not None:
+            payload["profile"] = args.get("profile")
+        return _bridge_call(call_bridge, "bevel_edges", payload)
+
+    if name == "frigg_blender_subdivide_mesh":
+        payload = {"object_name": args.get("object_name")}
+        if args.get("cuts") is not None:
+            payload["cuts"] = args.get("cuts")
+        if args.get("smooth") is not None:
+            payload["smooth"] = args.get("smooth")
+        if args.get("face_indices") is not None:
+            payload["face_indices"] = args.get("face_indices")
+        return _bridge_call(call_bridge, "subdivide_mesh", payload)
+
+    if name == "frigg_blender_recalculate_normals":
+        payload = {"object_name": args.get("object_name")}
+        if args.get("inside") is not None:
+            payload["inside"] = args.get("inside")
+        return _bridge_call(call_bridge, "recalculate_normals", payload)
+
+    if name == "frigg_blender_shade_smooth":
+        payload = {"object_name": args.get("object_name")}
+        if args.get("smooth") is not None:
+            payload["smooth"] = args.get("smooth")
+        if args.get("auto_smooth") is not None:
+            payload["auto_smooth"] = args.get("auto_smooth")
+        if args.get("angle") is not None:
+            payload["angle"] = args.get("angle")
+        return _bridge_call(call_bridge, "shade_smooth", payload)
+
+    if name == "frigg_blender_apply_all_modifiers":
+        payload = {"object_name": args.get("object_name")}
+        if args.get("types") is not None:
+            payload["types"] = args.get("types")
+        return _bridge_call(call_bridge, "apply_all_modifiers", payload)
+
+    if name == "frigg_blender_select_faces_by_angle":
+        payload = {"object_name": args.get("object_name")}
+        if args.get("direction") is not None:
+            payload["direction"] = args.get("direction")
+        if args.get("threshold") is not None:
+            payload["threshold"] = args.get("threshold")
+        if args.get("extend") is not None:
+            payload["extend"] = args.get("extend")
+        return _bridge_call(call_bridge, "select_faces_by_angle", payload)
 
     return error_result("unknown_tool", f"Unknown core tool: {name}")

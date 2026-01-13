@@ -231,7 +231,7 @@ def handle_search_tools(arguments: Dict[str, Any]) -> Dict[str, Any]:
 
         results.append(
             {
-                "name": f"frigg.blender.{tool_name}",
+                "name": f"frigg_blender_{tool_name}",
                 "category": metadata["category"],
                 "description": metadata["description"],
                 "visibility": metadata["visibility"],

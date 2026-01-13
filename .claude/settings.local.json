@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__frigg__frigg_blender_bridge_ping",
+      "mcp__frigg__frigg_blender_list_objects",
+      "mcp__frigg__frigg_blender_set_transform",
+      "mcp__frigg__frigg_blender_get_transform",
+      "mcp__frigg__frigg_blender_create_primitive",
+      "mcp__frigg__frigg_blender_add_modifier",
+      "mcp__frigg__frigg_blender_list_modifiers",
+      "mcp__frigg__frigg_blender_create_material",
+      "mcp__frigg__frigg_blender_assign_material",
+      "mcp__frigg__frigg_blender_create_collection",
+      "mcp__frigg__frigg_blender_move_to_collection",
+      "Bash(dir /s /b D:Frigglogs)",
+      "mcp__frigg__frigg_blender_get_scene_info",
+      "Bash(python tools/test_fixed_tools.py:*)",
+      "Bash(python:*)",
+      "Bash(test:*)",
+      "Bash(taskkill /F /IM \"Claude.exe\")",
+      "Bash(powershell -Command \"Get-Process | Where-Object {$_ProcessName -like ''*Claude*''} | Stop-Process -Force\")",
+      "Bash(powershell:*)",
+      "Bash(Get-ChildItem -Path D:Frigg -Filter \"tmpclaude-*\" -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(ls:*)",
+      "Bash(Get-Process -Id 16492 -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object ProcessName, Id, Path)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist /FI \"PID eq 16492\" /FO TABLE)",
+      "Bash(cmd /c \"tasklist /FI \"\"PID eq 16492\"\"\")",
+      "Bash(cmd /c \"netstat -ano | findstr 8765\")",
+      "Bash(D:.venvScriptspython.exe -c \"import socket, json; s = socket.create_connection\\(\\(''127.0.0.1'', 8765\\), timeout=5\\); s.sendall\\(b''{\"\"method\"\":\"\"bridge_ping\"\",\"\"params\"\":{}}\\\\n''\\); print\\(s.makefile\\(''r''\\).readline\\(\\)\\)\")",
+      "Bash(Get-Content \"D:\\\\Frigg\\\\blender_bridge_addon\\\\__init__.py\")",
+      "Bash(Measure-Object -Line)"
+    ]
+  }
+}

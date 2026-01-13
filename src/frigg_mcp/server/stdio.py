@@ -153,7 +153,7 @@ def handle_call(name: str, arguments: Optional[Dict[str, Any]]) -> Dict[str, Any
     if name in core_tools.CORE_TOOL_NAMES:
         return core_tools.handle_core_call(name, arguments, call_bridge)
 
-    if name == "frigg.search_tools":
+    if name == "frigg_search_tools":
         return handle_search_tools(arguments or {})
 
     return core_tools.error_result("unknown_tool", f"Unknown tool: {name}")
@@ -208,7 +208,39 @@ def handle_request(request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             log(f"Tool call error: {exc}")
             log(traceback.format_exc())
             result = core_tools.error_result("internal_error", str(exc))
-        return jsonrpc_result(result, req_id)
+
+        # Convert internal result format to MCP format
+        if isinstance(result, dict):
+            if result.get("ok") is True:
+                # Success: wrap result in MCP content format
+                inner_result = result.get("result", {})
+                import json
+                mcp_result = {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(inner_result, indent=2)
+                        }
+                    ]
+                }
+                return jsonrpc_result(mcp_result, req_id)
+            else:
+                # Error: return as MCP error with content
+                error_info = result.get("error", {})
+                error_message = error_info.get("message", "Unknown error") if isinstance(error_info, dict) else str(error_info)
+                mcp_result = {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"Error: {error_message}"
+                        }
+                    ],
+                    "isError": True
+                }
+                return jsonrpc_result(mcp_result, req_id)
+
+        # Fallback for unexpected format
+        return jsonrpc_result({"content": [{"type": "text", "text": str(result)}]}, req_id)
 
     # Handle methods we don't support yet but shouldn't error on
     if method in ("resources/list", "prompts/list"):
